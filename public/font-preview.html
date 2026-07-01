@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BIANKIII Serif Preview</title>
+    <!-- Temporary local preview page served from /font-preview.html. -->
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400..900&family=Fraunces:opsz,wght@9..144,100..900&family=Inter:opsz,wght@14..32,100..900&family=Playfair+Display:wght@400..900&family=Roboto+Serif:opsz,wght@8..144,100..900&family=Source+Serif+4:opsz,wght@8..60,200..900&display=swap");
+
+      :root {
+        color-scheme: dark;
+        --black: #151515;
+        --green: #b8e0d4;
+        --muted: rgba(184, 224, 212, 0.62);
+        --card: rgba(255, 255, 255, 0.045);
+        --line: rgba(184, 224, 212, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(184, 224, 212, 0.16), transparent 34rem),
+          linear-gradient(135deg, var(--black) 0 49.9%, var(--green) 50% 100%);
+        color: var(--green);
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      main {
+        display: grid;
+        gap: 18px;
+        width: min(1180px, calc(100vw - 48px));
+        margin: 0 auto;
+        padding: 38px 0;
+      }
+
+      header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 4px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 64px);
+        letter-spacing: 0.08em;
+        font-weight: 900;
+      }
+
+      .note {
+        max-width: 430px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+        text-align: right;
+      }
+
+      .row {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: rgba(21, 21, 21, 0.68);
+        backdrop-filter: blur(10px);
+        box-shadow:
+          inset 1px -1px 1px rgba(255, 255, 255, 0.22),
+          inset -1px 1px 1px rgba(255, 255, 255, 0.12),
+          0 18px 54px rgba(0, 0, 0, 0.22);
+      }
+
+      .row::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%, rgba(255, 255, 255, 0.12));
+        opacity: 0.4;
+      }
+
+      .meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 24px 0;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .font-name {
+        color: var(--green);
+      }
+
+      .sample {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 142px;
+        padding: 4px 20px 24px;
+        color: var(--green);
+        font-size: clamp(58px, 11vw, 158px);
+        line-height: 0.9;
+        letter-spacing: 0.11em;
+        text-align: center;
+        white-space: nowrap;
+        user-select: none;
+      }
+
+      .sample span {
+        display: inline-block;
+        will-change: font-variation-settings;
+      }
+
+      .roboto-serif {
+        font-family: "Roboto Serif", Georgia, serif;
+        font-variation-settings: "wght" 650, "opsz" 16;
+      }
+
+      .source-serif {
+        font-family: "Source Serif 4", Georgia, serif;
+        font-variation-settings: "wght" 650, "opsz" 16;
+      }
+
+      .fraunces {
+        font-family: Fraunces, Georgia, serif;
+        font-variation-settings: "wght" 650, "opsz" 16;
+      }
+
+      .playfair {
+        font-family: "Playfair Display", Georgia, serif;
+        font-variation-settings: "wght" 650;
+      }
+
+      .bodoni {
+        font-family: "Bodoni Moda", Georgia, serif;
+        font-variation-settings: "wght" 600, "opsz" 16;
+      }
+
+      @media (max-width: 760px) {
+        header {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .note {
+          text-align: left;
+        }
+
+        .sample {
+          min-height: 104px;
+          letter-spacing: 0.06em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>BIANKIII Serif Preview</h1>
+        <p class="note">
+          Move the cursor across each word. The letter closest to the cursor gets the strongest variable-font setting.
+        </p>
+      </header>
+
+      <section class="row" data-from='{"wght":650,"opsz":16}' data-to='{"wght":900,"opsz":96}'>
+        <div class="meta">
+          <span class="font-name">Roboto Serif</span>
+          <span>modern / clear / balanced</span>
+        </div>
+        <div class="sample roboto-serif">BIANKIII</div>
+      </section>
+
+      <section class="row" data-from='{"wght":650,"opsz":16}' data-to='{"wght":900,"opsz":60}'>
+        <div class="meta">
+          <span class="font-name">Source Serif 4</span>
+          <span>quiet / literary / restrained</span>
+        </div>
+        <div class="sample source-serif">BIANKIII</div>
+      </section>
+
+      <section class="row" data-from='{"wght":650,"opsz":16}' data-to='{"wght":900,"opsz":120}'>
+        <div class="meta">
+          <span class="font-name">Fraunces</span>
+          <span>expressive / warm / editorial</span>
+        </div>
+        <div class="sample fraunces">BIANKIII</div>
+      </section>
+
+      <section class="row" data-from='{"wght":650}' data-to='{"wght":900}'>
+        <div class="meta">
+          <span class="font-name">Playfair Display</span>
+          <span>elegant / high contrast / magazine</span>
+        </div>
+        <div class="sample playfair">BIANKIII</div>
+      </section>
+
+      <section class="row" data-from='{"wght":600,"opsz":16}' data-to='{"wght":900,"opsz":72}'>
+        <div class="meta">
+          <span class="font-name">Bodoni Moda</span>
+          <span>luxury / sharp / dramatic</span>
+        </div>
+        <div class="sample bodoni">BIANKIII</div>
+      </section>
+    </main>
+
+    <script>
+      const radius = 190;
+
+      function toSettings(settings) {
+        return Object.entries(settings)
+          .map(([axis, value]) => `"${axis}" ${Number(value.toFixed(3))}`)
+          .join(", ");
+      }
+
+      function splitLetters(sample) {
+        const text = sample.textContent.trim();
+        sample.textContent = "";
+        for (const letter of text) {
+          const span = document.createElement("span");
+          span.textContent = letter;
+          sample.appendChild(span);
+        }
+      }
+
+      document.querySelectorAll(".sample").forEach(splitLetters);
+
+      function update(event) {
+        document.querySelectorAll(".row").forEach((row) => {
+          const from = JSON.parse(row.dataset.from);
+          const to = JSON.parse(row.dataset.to);
+          const letters = row.querySelectorAll(".sample span");
+
+          letters.forEach((letter) => {
+            const rect = letter.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const distance = Math.hypot(event.clientX - x, event.clientY - y);
+            const normalized = Math.min(Math.max(1 - distance / radius, 0), 1);
+            const falloff = Math.exp(-((distance / (radius / 2)) ** 2) / 2);
+            const next = {};
+
+            for (const axis of Object.keys(from)) {
+              next[axis] = from[axis] + ((to[axis] ?? from[axis]) - from[axis]) * falloff * normalized;
+            }
+
+            letter.style.fontVariationSettings = toSettings(next);
+          });
+        });
+      }
+
+      document.addEventListener("mousemove", update, { passive: true });
+    </script>
+  </body>
+</html>

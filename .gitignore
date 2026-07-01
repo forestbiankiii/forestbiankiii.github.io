@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+.next/
+out/
+temp/
+.playwright-cli/
+.agents/
+C:\Users\17196\Desktop\PersonalWebsite/
+tsconfig.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

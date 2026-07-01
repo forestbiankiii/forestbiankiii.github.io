@@ -1,0 +1,18 @@
+export const LIQUID_ETHER_BACKGROUND_PROPS = {
+  colors: ["#2e27ff", "#b8dde9", "#B8E0D4"],
+  mouseForce: 28,
+  cursorSize: 180,
+  isViscous: false,
+  viscous: 30,
+  iterationsViscous: 32,
+  iterationsPoisson: 19,
+  resolution: 0.5,
+  isBounce: true,
+  autoDemo: true,
+  autoSpeed: 0.15,
+  autoIntensity: 2,
+  takeoverDuration: 0.25,
+  autoResumeDelay: 3000,
+  autoRampDuration: 0.6,
+  style: { position: "absolute", inset: 0 },
+};
