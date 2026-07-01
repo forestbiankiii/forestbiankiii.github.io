@@ -85,11 +85,16 @@
   padding: 0;
 }
 
-.glass-surface.viewport-frame-glass {
+.viewport-frame-glass-regions {
   position: fixed;
   inset: 0;
   z-index: 40;
   pointer-events: none;
+}
+
+.glass-surface.viewport-frame-glass {
+  position: absolute;
+  box-shadow: none;
   background: color-mix(
     in srgb,
     var(--viewport-frame-ink) 10%,

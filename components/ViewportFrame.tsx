@@ -25,9 +25,7 @@ interface FrameMetrics {
   footerTop: number | null;
 }
 
-interface FrameGeometry {
-  width: number;
-  height: number;
+interface FrameGeometry extends FrameMetrics {
   pathData: string;
   frameInnerPath: string;
   navInnerPath: string;
@@ -35,6 +33,14 @@ interface FrameGeometry {
   frameInnerEdgeSize: number;
   navInnerEdgeSize: number;
   footerInnerEdgeSize: number;
+}
+
+interface GlassRegion {
+  id: "top-left" | "nav" | "top-right" | "left" | "right" | "bottom";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 function buildConnectedFramePath({
@@ -158,15 +164,89 @@ function readCssPixelValue(styles: CSSStyleDeclaration, property: string) {
   return Number.parseFloat(styles.getPropertyValue(property));
 }
 
-function buildConnectedFrameMask({
+function buildGlassRegions({
   width,
   height,
+  frameWidth,
+  radius,
+  navLeft,
+  navRight,
+  navBottom,
+  footerTop,
   pathData,
 }: FrameGeometry) {
+  if (!pathData) return [];
+
+  const sideWidth = Math.min(width / 2, frameWidth + radius);
+  const navRegionLeft = Math.max(
+    sideWidth,
+    Math.min(width - sideWidth, navLeft - radius),
+  );
+  const navRegionRight = Math.max(
+    navRegionLeft,
+    Math.min(width - sideWidth, navRight + radius),
+  );
+  const sideBottom = footerTop ?? height - frameWidth;
+
+  return [
+    {
+      id: "top-left",
+      x: 0,
+      y: 0,
+      width: navRegionLeft,
+      height: frameWidth,
+    },
+    {
+      id: "nav",
+      x: navRegionLeft,
+      y: 0,
+      width: navRegionRight - navRegionLeft,
+      height: navBottom,
+    },
+    {
+      id: "top-right",
+      x: navRegionRight,
+      y: 0,
+      width: width - navRegionRight,
+      height: frameWidth,
+    },
+    {
+      id: "left",
+      x: 0,
+      y: frameWidth,
+      width: sideWidth,
+      height: sideBottom - frameWidth,
+    },
+    {
+      id: "right",
+      x: width - sideWidth,
+      y: frameWidth,
+      width: sideWidth,
+      height: sideBottom - frameWidth,
+    },
+    {
+      id: "bottom",
+      x: 0,
+      y: sideBottom,
+      width,
+      height: height - sideBottom,
+    },
+  ].filter((region) => region.width > 0 && region.height > 0) as GlassRegion[];
+}
+
+function buildConnectedFrameMask(
+  { pathData }: FrameGeometry,
+  region: GlassRegion,
+) {
   if (!pathData) return "none";
 
   const svg = `
-    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      width="${region.width}"
+      height="${region.height}"
+      viewBox="${region.x} ${region.y} ${region.width} ${region.height}"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <path d="${pathData}" fill="white" fill-rule="evenodd" clip-rule="evenodd" />
     </svg>
   `;
@@ -174,23 +254,31 @@ function buildConnectedFrameMask({
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-function buildConnectedDisplacementMap({
-  width,
-  height,
-  pathData,
-  frameInnerPath,
-  navInnerPath,
-  footerInnerPath,
-  frameInnerEdgeSize,
-  navInnerEdgeSize,
-  footerInnerEdgeSize,
-}: FrameGeometry) {
+function buildConnectedDisplacementMap(
+  {
+    width,
+    height,
+    pathData,
+    frameInnerPath,
+    navInnerPath,
+    footerInnerPath,
+    frameInnerEdgeSize,
+    navInnerEdgeSize,
+    footerInnerEdgeSize,
+  }: FrameGeometry,
+  region: GlassRegion,
+) {
   const outerEdgeBlur = getEdgeBlur(outerScreenEdgeSize);
   const frameInnerBlur = getEdgeBlur(frameInnerEdgeSize);
   const navInnerBlur = getEdgeBlur(navInnerEdgeSize);
   const footerInnerBlur = getEdgeBlur(footerInnerEdgeSize);
   const svg = `
-    <svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      width="${region.width}"
+      height="${region.height}"
+      viewBox="${region.x} ${region.y} ${region.width} ${region.height}"
+      xmlns="http://www.w3.org/2000/svg"
+    >
       <defs>
         <linearGradient id="frame-red-gradient" x1="100%" y1="0%" x2="0%" y2="0%">
           <stop offset="0%" stop-color="#0000" />
@@ -284,6 +372,12 @@ export default function ViewportFrame() {
   const [geometry, setGeometry] = useState<FrameGeometry>({
     width: 1,
     height: 1,
+    frameWidth: 1,
+    radius: 0,
+    navLeft: 0,
+    navRight: 1,
+    navBottom: 1,
+    footerTop: null,
     pathData: "",
     frameInnerPath: "",
     navInnerPath: "",
@@ -323,8 +417,7 @@ export default function ViewportFrame() {
       };
 
       setGeometry({
-        width,
-        height,
+        ...metrics,
         pathData: buildConnectedFramePath(metrics),
         ...buildConnectedFrameEdgePaths(metrics),
         frameInnerEdgeSize: getInnerEdgeSize(frameWidth),
@@ -363,29 +456,40 @@ export default function ViewportFrame() {
     };
   }, []);
 
-  const maskImage = buildConnectedFrameMask(geometry);
-  const displacementMap = buildConnectedDisplacementMap(geometry);
+  const glassRegions = buildGlassRegions(geometry);
 
   return (
-    <GlassSurface
-      width="100vw"
-      height="100vh"
-      borderRadius={0}
-      brightness={50}
-      opacity={0.93}
-      displace={0.5}
-      backgroundOpacity={0.1}
-      saturation={1}
-      distortionScale={-300}
-      redOffset={0}
-      greenOffset={10}
-      blueOffset={20}
-      displacementMap={displacementMap}
-      className="viewport-frame-glass"
-      style={{
-        WebkitMaskImage: maskImage,
-        maskImage,
-      }}
-    />
+    <div className="viewport-frame-glass-regions">
+      {glassRegions.map((region) => {
+        const maskImage = buildConnectedFrameMask(geometry, region);
+        const displacementMap = buildConnectedDisplacementMap(geometry, region);
+
+        return (
+          <GlassSurface
+            key={region.id}
+            width={region.width}
+            height={region.height}
+            borderRadius={0}
+            brightness={50}
+            opacity={0.93}
+            displace={0.5}
+            backgroundOpacity={0.1}
+            saturation={1}
+            distortionScale={-300}
+            redOffset={0}
+            greenOffset={10}
+            blueOffset={20}
+            displacementMap={displacementMap}
+            className="viewport-frame-glass"
+            style={{
+              left: region.x,
+              top: region.y,
+              WebkitMaskImage: maskImage,
+              maskImage,
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
