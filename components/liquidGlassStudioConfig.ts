@@ -16,8 +16,7 @@ export const LIQUID_GLASS_STUDIO_CONFIG = {
   glareConvergence: 80.51,
   glareOppositeFactor: 80,
   glareAngle: -45,
-  // Preset exports blurRadius: 1; overridden to 50 for the model panel background.
-  blurRadius: 50,
+  blurRadius: 1,
   blurEdge: true,
   tint: { r: 255, g: 255, b: 255, a: 0 },
   shadowExpand: 15,

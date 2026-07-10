@@ -54,7 +54,6 @@ export default function AcademicPreview() {
             >
               <SpotlightCard
                 className="group h-full rounded-[28px] p-6 transition-all duration-500"
-                spotlightColor="var(--color-primary-dim)"
               >
                 <p className="mb-4 text-xs uppercase tracking-[0.25em] text-primary/70">
                   {item.label}

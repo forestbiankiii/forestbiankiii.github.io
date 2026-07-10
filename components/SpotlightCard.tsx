@@ -1,38 +1,37 @@
 "use client";
 
-import { useRef, type MouseEvent, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
+import { liquidGlassCardControls } from "./liquidGlassCardParams";
 import "./SpotlightCard.css";
 
 interface SpotlightCardProps {
   children: ReactNode;
   className?: string;
-  spotlightColor?: string;
 }
+
+type LiquidGlassCardStyle = CSSProperties & {
+  "--liquid-glass-blur": string;
+  "--liquid-glass-tint": string;
+  "--liquid-glass-radius": string;
+};
 
 const SpotlightCard = ({
   children,
   className = "",
-  spotlightColor = "rgba(255, 255, 255, 0.25)",
 }: SpotlightCardProps) => {
-  const divRef = useRef<HTMLDivElement>(null);
-
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (!divRef.current) return;
-
-    const rect = divRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    divRef.current.style.setProperty("--mouse-x", `${x}px`);
-    divRef.current.style.setProperty("--mouse-y", `${y}px`);
-    divRef.current.style.setProperty("--spotlight-color", spotlightColor);
+  const { blurRadius, shapeRadius, tint } = liquidGlassCardControls;
+  const cardStyle: LiquidGlassCardStyle = {
+    borderRadius: `${shapeRadius}px`,
+    "--liquid-glass-blur": `${blurRadius}px`,
+    "--liquid-glass-tint": `rgb(${tint.r} ${tint.g} ${tint.b} / ${tint.a})`,
+    "--liquid-glass-radius": `${shapeRadius}px`,
   };
 
   return (
     <div
-      ref={divRef}
-      onMouseMove={handleMouseMove}
       className={`card-spotlight ${className}`}
+      data-liquid-glass-source="iyinchao/liquid-glass-studio"
+      style={cardStyle}
     >
       {children}
     </div>

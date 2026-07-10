@@ -5,7 +5,7 @@ import type {
   ButtonHTMLAttributes,
   ReactNode,
 } from "react";
-import GlassSurface from "@/components/GlassSurface";
+import StudioLiquidGlass from "@/components/StudioLiquidGlass";
 import "./GlassButton.css";
 
 type CommonProps = {
@@ -55,25 +55,16 @@ export default function GlassButton({
     );
 
   return (
-    <GlassSurface
+    <StudioLiquidGlass
       width={icon ? "2.75rem" : "fit-content"}
       height={icon ? "2.75rem" : "auto"}
       borderRadius={999}
-      borderWidth={0.1}
-      brightness={56}
-      opacity={0.9}
-      blur={10}
-      displace={0.45}
-      backgroundOpacity={0.1}
-      saturation={1.5}
-      distortionScale={-145}
-      greenOffset={8}
-      blueOffset={18}
+      blurRadius={1}
       className={`glass-button-surface ${
         icon ? "glass-button-surface--icon" : ""
       } ${surfaceClassName}`.trim()}
     >
       {control}
-    </GlassSurface>
+    </StudioLiquidGlass>
   );
 }

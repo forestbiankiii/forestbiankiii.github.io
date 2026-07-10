@@ -2,18 +2,25 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import LiquidEther from "./LiquidEther";
-import { LIQUID_ETHER_BACKGROUND_PROPS } from "./liquidEtherBackground";
+import Waves from "./Waves";
 import VariableProximity from "./VariableProximity";
 import {
   getIntroClipPaths,
   shouldContinueIntroAnimation,
 } from "./introClipPaths";
+import {
+  WAVES_DARK_BACKGROUND_COLOR,
+  WAVES_DARK_PROPS,
+  WAVES_LIGHT_BACKGROUND_COLOR,
+  WAVES_LIGHT_PROPS,
+} from "./wavesBackground";
 import type { SiteTheme } from "./siteTheme";
 import { useWindowPointer } from "./useWindowPointer";
 
 const BLACK_COLOR = "#000000";
 const WHITE_COLOR = "#ffffff";
+const DARK_BACKGROUND_COLOR = WAVES_DARK_BACKGROUND_COLOR;
+const LIGHT_BACKGROUND_COLOR = WAVES_LIGHT_BACKGROUND_COLOR;
 const INITIAL_CLIP_PATHS = getIntroClipPaths(0);
 
 interface IntroProps {
@@ -193,13 +200,13 @@ export default function Intro({ onEnter }: IntroProps) {
         ref={blackHalfRef}
         className="absolute inset-0 intro-background-panel intro-background-panel--black"
         style={{
-          backgroundColor: BLACK_COLOR,
+          backgroundColor: DARK_BACKGROUND_COLOR,
           clipPath: INITIAL_CLIP_PATHS.black,
           WebkitClipPath: INITIAL_CLIP_PATHS.black,
           willChange: "clip-path",
         }}
       >
-        <LiquidEther {...LIQUID_ETHER_BACKGROUND_PROPS} />
+        <Waves {...WAVES_DARK_PROPS} />
         <h1
           className="absolute z-10 top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-black tracking-widest select-none pointer-events-none whitespace-nowrap"
           style={{
@@ -222,13 +229,13 @@ export default function Intro({ onEnter }: IntroProps) {
         ref={whiteHalfRef}
         className="absolute inset-0 intro-background-panel intro-background-panel--white"
         style={{
-          backgroundColor: WHITE_COLOR,
+          backgroundColor: LIGHT_BACKGROUND_COLOR,
           clipPath: INITIAL_CLIP_PATHS.green,
           WebkitClipPath: INITIAL_CLIP_PATHS.green,
           willChange: "clip-path",
         }}
       >
-        <LiquidEther {...LIQUID_ETHER_BACKGROUND_PROPS} />
+        <Waves {...WAVES_LIGHT_PROPS} />
         <h1
           className="absolute z-10 top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 font-black tracking-widest select-none pointer-events-none whitespace-nowrap"
           style={{

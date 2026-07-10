@@ -15,7 +15,7 @@ type DisplacementChannel = "R" | "G" | "B";
 
 type GlassSurfaceStyle = CSSProperties & {
   "--filter-id"?: string;
-  "--glass-frost"?: number;
+  "--glass-frost"?: number | string;
   "--glass-saturation"?: number;
 };
 
@@ -27,9 +27,8 @@ interface GlassSurfaceProps {
   borderWidth?: number;
   brightness?: number;
   opacity?: number;
-  blur?: number;
   displace?: number;
-  backgroundOpacity?: number;
+  backgroundOpacity?: number | string;
   saturation?: number;
   distortionScale?: number;
   redOffset?: number;
@@ -39,6 +38,7 @@ interface GlassSurfaceProps {
   yChannel?: DisplacementChannel;
   mixBlendMode?: string;
   displacementMap?: string;
+  displacementMapElementId?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -51,9 +51,8 @@ export default function GlassSurface({
   borderWidth = 0.07,
   brightness = 50,
   opacity = 0.93,
-  blur = 11,
   displace = 0,
-  backgroundOpacity = 0,
+  backgroundOpacity,
   saturation = 1,
   distortionScale = -180,
   redOffset = 0,
@@ -63,6 +62,7 @@ export default function GlassSurface({
   yChannel = "G",
   mixBlendMode = "difference",
   displacementMap,
+  displacementMapElementId,
   className = "",
   style = {},
 }: GlassSurfaceProps) {
@@ -106,10 +106,18 @@ export default function GlassSurface({
     const actualWidth = rect?.width || 400;
     const actualHeight = rect?.height || 200;
     const edgeSize = Math.min(actualWidth, actualHeight) * (borderWidth * 0.5);
+    const edgeBlur = edgeSize * 3;
+    const edgeInset = edgeSize * 0.5;
     const numericBorderRadius =
       typeof borderRadius === "number"
         ? borderRadius
         : Number.parseFloat(borderRadius) || 0;
+    const surfaceRadius = Math.min(
+      numericBorderRadius,
+      actualWidth * 0.5,
+      actualHeight * 0.5,
+    );
+    const edgeRadius = Math.max(0, surfaceRadius - edgeInset);
 
     const svgContent = `
       <svg viewBox="0 0 ${actualWidth} ${actualHeight}" xmlns="http://www.w3.org/2000/svg">
@@ -122,11 +130,28 @@ export default function GlassSurface({
             <stop offset="0%" stop-color="#0000"/>
             <stop offset="100%" stop-color="blue"/>
           </linearGradient>
+          <mask id="button-edge-region" maskUnits="userSpaceOnUse" x="0" y="0" width="${actualWidth}" height="${actualHeight}">
+            <rect width="${actualWidth}" height="${actualHeight}" fill="black" />
+            <rect
+              x="${edgeInset}"
+              y="${edgeInset}"
+              width="${actualWidth - edgeSize}"
+              height="${actualHeight - edgeSize}"
+              rx="${edgeRadius}"
+              fill="none"
+              stroke="white"
+              stroke-width="${edgeSize}"
+              style="filter:blur(${edgeBlur}px)"
+            />
+          </mask>
         </defs>
         <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" fill="black"></rect>
-        <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${numericBorderRadius}" fill="url(#${redGradId})" />
-        <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${numericBorderRadius}" fill="url(#${blueGradId})" style="mix-blend-mode: ${mixBlendMode}" />
-        <rect x="${edgeSize}" y="${edgeSize}" width="${actualWidth - edgeSize * 2}" height="${actualHeight - edgeSize * 2}" rx="${numericBorderRadius}" fill="hsl(0 0% ${brightness}% / ${opacity})" style="filter:blur(${blur}px)" />
+        <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${surfaceRadius}" fill="hsl(0 0% ${brightness}% / ${opacity})" />
+        <g mask="url(#button-edge-region)">
+          <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${surfaceRadius}" fill="black" />
+          <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${surfaceRadius}" fill="url(#${redGradId})" />
+          <rect x="0" y="0" width="${actualWidth}" height="${actualHeight}" rx="${surfaceRadius}" fill="url(#${blueGradId})" style="mix-blend-mode: ${mixBlendMode}" />
+        </g>
       </svg>
     `;
 
@@ -134,8 +159,26 @@ export default function GlassSurface({
   };
 
   const updateDisplacementMap = () => {
-    const mapUrl = displacementMap ?? generateDisplacementMap();
     const requestId = ++mapLoadIdRef.current;
+
+    if (displacementMapElementId) {
+      feImageRef.current?.setAttribute("href", `#${displacementMapElementId}`);
+
+      if (!displacementMapReady) {
+        window.setTimeout(() => {
+          if (requestId !== mapLoadIdRef.current) return;
+          setDisplacementMapReady(true);
+        }, 400);
+      }
+      return;
+    }
+
+    if (displacementMap && displacementMapReady) {
+      feImageRef.current?.setAttribute("href", displacementMap);
+      return;
+    }
+
+    const mapUrl = displacementMap ?? generateDisplacementMap();
     const preload = new Image();
 
     preload.onload = () => {
@@ -172,7 +215,6 @@ export default function GlassSurface({
     borderWidth,
     brightness,
     opacity,
-    blur,
     displace,
     distortionScale,
     redOffset,
@@ -182,6 +224,7 @@ export default function GlassSurface({
     yChannel,
     mixBlendMode,
     displacementMap,
+    displacementMapElementId,
   ]);
 
   useEffect(() => {
@@ -189,7 +232,7 @@ export default function GlassSurface({
   }, []);
 
   useEffect(() => {
-    if (displacementMap) return;
+    if (displacementMap || displacementMapElementId) return;
     if (!containerRef.current || typeof ResizeObserver === "undefined") return;
 
     const resizeObserver = new ResizeObserver(() => {
@@ -201,11 +244,7 @@ export default function GlassSurface({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [displacementMap]);
-
-  useEffect(() => {
-    updateDisplacementMap();
-  }, [width, height]);
+  }, [displacementMap, displacementMapElementId]);
 
   const svgActive = svgSupported && displacementMapReady;
 
@@ -214,10 +253,13 @@ export default function GlassSurface({
     width: typeof width === "number" ? `${width}px` : width,
     height: typeof height === "number" ? `${height}px` : height,
     borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : borderRadius,
-    "--glass-frost": backgroundOpacity,
     "--glass-saturation": saturation,
     "--filter-id": `url(#${filterId})`,
   };
+
+  if (backgroundOpacity !== undefined) {
+    containerStyle["--glass-frost"] = backgroundOpacity;
+  }
 
   return (
     <div

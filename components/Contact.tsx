@@ -96,7 +96,6 @@ export default function Contact() {
             >
               <SpotlightCard
                 className="group flex h-full flex-col items-center gap-3 rounded-[28px] p-6 transition-all duration-300"
-                spotlightColor="var(--color-primary-dim)"
               >
                 <span className="text-primary/60 group-hover:text-primary transition-colors duration-300">
                   {link.icon}

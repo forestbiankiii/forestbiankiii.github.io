@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Intro from "@/components/Intro";
 import Navbar from "@/components/Navbar";
@@ -9,8 +9,8 @@ import Projects from "@/components/Projects";
 import AcademicPreview from "@/components/AcademicPreview";
 import Contact from "@/components/Contact";
 import ViewportFrame from "@/components/ViewportFrame";
-import LiquidEther from "@/components/LiquidEther";
-import { LIQUID_ETHER_BACKGROUND_PROPS } from "@/components/liquidEtherBackground";
+import ModelViewer from "@/components/ModelViewer";
+import ModelAdjustmentPanel from "@/components/ModelAdjustmentPanel";
 import {
   hasSeenIntro,
   isPageReload,
@@ -20,9 +20,21 @@ import {
   getSiteThemeFromIntroSide,
   type SiteTheme,
 } from "@/components/siteTheme";
+import { withBasePath } from "@/components/sitePath";
+import {
+  FERRARI_MODEL_PATH,
+  getModelBackgroundColor,
+  MODEL_BACKGROUND_VIEWER_PROPS,
+} from "@/components/modelBackground";
+import {
+  clampModelControlValue,
+  DEFAULT_MODEL_CONTROLS,
+  toggleModelInteractionMode,
+  type ModelNumericControl,
+} from "@/components/modelControls";
 
 type ThemeSweepDirection = "to-black" | "to-white";
-const themeSweepDuration = 900;
+const themeSweepDuration = 1800;
 
 function removeThemeSweepSnapshots() {
   document
@@ -47,7 +59,11 @@ function createThemeSweepSnapshot(direction: ThemeSweepDirection) {
   document.body.appendChild(snapshot);
 
   const cleanup = () => snapshot.remove();
-  snapshot.addEventListener("animationend", cleanup, { once: true });
+  const handleSweepEnd = (event: AnimationEvent) => {
+    if (event.target !== snapshot) return;
+    cleanup();
+  };
+  snapshot.addEventListener("animationend", handleSweepEnd);
   window.setTimeout(cleanup, themeSweepDuration + 120);
 }
 
@@ -55,6 +71,20 @@ export default function Home() {
   const [entered, setEntered] = useState(false);
   const [introResolved, setIntroResolved] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("black");
+  const [modelControls, setModelControls] = useState(
+    DEFAULT_MODEL_CONTROLS,
+  );
+  const [modelResetVersion, setModelResetVersion] = useState(0);
+  const [modelAdjustmentOpen, setModelAdjustmentOpen] = useState(false);
+  const [frameGlassOpacity, setFrameGlassOpacity] = useState({
+    darkTheme: 0.4,
+    lightTheme: 0.35,
+  });
+
+  const frameGlassStyle = {
+    "--frame-glass-dark-opacity": frameGlassOpacity.darkTheme,
+    "--frame-glass-light-opacity": frameGlassOpacity.lightTheme,
+  } as CSSProperties;
 
   useEffect(() => {
     setEntered(hasSeenIntro() && !isPageReload());
@@ -85,14 +115,63 @@ export default function Home() {
     setTheme(nextTheme);
   }
 
+  function handleModelNumericChange(
+    control: ModelNumericControl,
+    value: number,
+  ) {
+    setModelControls((current) => ({
+      ...current,
+      [control]: clampModelControlValue(control, value),
+    }));
+  }
+
+  function handleToggleModelInteractionMode() {
+    setModelControls((current) => ({
+      ...current,
+      interactionMode: toggleModelInteractionMode(
+        current.interactionMode,
+      ),
+    }));
+  }
+
+  function handleResetModelControls() {
+    setModelControls(DEFAULT_MODEL_CONTROLS);
+    setModelResetVersion((current) => current + 1);
+  }
+
   return (
     <main
       data-site-theme={theme}
+      data-model-interaction={modelControls.interactionMode}
       className="relative min-h-screen overflow-hidden text-text"
+      style={frameGlassStyle}
     >
       {entered && (
-        <div aria-hidden="true" className="site-theme-background">
-          <LiquidEther {...LIQUID_ETHER_BACKGROUND_PROPS} />
+        <div
+          aria-hidden="true"
+          className="site-model-background"
+          style={{ backgroundColor: getModelBackgroundColor(theme) }}
+        >
+          <ModelViewer
+            url={withBasePath(FERRARI_MODEL_PATH)}
+            width="100%"
+            height="100%"
+            {...MODEL_BACKGROUND_VIEWER_PROPS}
+            modelScale={modelControls.modelScale}
+            rotationResetKey={modelResetVersion}
+            modelXOffset={modelControls.modelXOffset}
+            modelYOffset={modelControls.modelYOffset}
+            enableMouseParallax={
+              modelControls.interactionMode === "browse"
+            }
+            enableHoverRotation={
+              modelControls.interactionMode === "browse"
+            }
+            enableManualRotation={
+              modelControls.interactionMode === "rotate"
+            }
+            manualRotationTarget="window"
+          />
         </div>
       )}
       <AnimatePresence>
@@ -106,37 +185,95 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
-              className="relative z-10 min-h-screen"
+              className={`relative z-10 min-h-screen${modelAdjustmentOpen ? " is-model-adjustment-open" : ""}`}
             >
-              <ViewportFrame />
+              <section
+                className="frame-glass-opacity-controls"
+                aria-labelledby="frame-glass-opacity-title"
+              >
+                <p id="frame-glass-opacity-title">FRAME GLASS</p>
+                <label>
+                  <span>
+                    深色主题·白色
+                    <output>{frameGlassOpacity.darkTheme.toFixed(2)}</output>
+                  </span>
+                  <input
+                    aria-label="深色主题边框玻璃不透明度"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={frameGlassOpacity.darkTheme}
+                    onInput={(event) =>
+                      setFrameGlassOpacity((current) => ({
+                        ...current,
+                        darkTheme: Number(event.currentTarget.value),
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  <span>
+                    白色主题·黑色
+                    <output>{frameGlassOpacity.lightTheme.toFixed(2)}</output>
+                  </span>
+                  <input
+                    aria-label="白色主题边框玻璃不透明度"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={frameGlassOpacity.lightTheme}
+                    onInput={(event) =>
+                      setFrameGlassOpacity((current) => ({
+                        ...current,
+                        lightTheme: Number(event.currentTarget.value),
+                      }))
+                    }
+                  />
+                </label>
+              </section>
+              <ModelAdjustmentPanel
+                controls={modelControls}
+                onNumericChange={handleModelNumericChange}
+                onToggleInteractionMode={
+                  handleToggleModelInteractionMode
+                }
+                onReset={handleResetModelControls}
+                onOpenChange={setModelAdjustmentOpen}
+              />
 
-              {/* Navigation */}
-              <Navbar onToggleTheme={handleToggleTheme} />
+              <div className="site-content-layer" aria-hidden={modelAdjustmentOpen}>
+                <ViewportFrame />
 
-              {/* Hero Section */}
-              <Hero />
+                {/* Navigation */}
+                <Navbar onToggleTheme={handleToggleTheme} />
 
-              {/* Projects Section */}
-              <Projects />
+                {/* Hero Section */}
+                <Hero />
 
-              {/* Academic Section */}
-              <AcademicPreview />
+                {/* Projects Section */}
+                <Projects />
 
-              {/* Contact Section */}
-              <Contact />
+                {/* Academic Section */}
+                <AcademicPreview />
 
-              {/* Footer */}
-              <footer className="site-footer-shell">
-                <div className="site-footer-content mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 md:flex-row">
-                  <p className="site-footer-copy text-xs tracking-wide">
-                    &copy; {new Date().getFullYear()} BIAN
-                    <span>KIII</span>. All rights reserved.
-                  </p>
-                  <p className="site-footer-note text-xs">
-                    Crafted with quantum precision
-                  </p>
-                </div>
-              </footer>
+                {/* Contact Section */}
+                <Contact />
+
+                {/* Footer */}
+                <footer className="site-footer-shell">
+                  <div className="site-footer-content mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 md:flex-row">
+                    <p className="site-footer-copy text-xs tracking-wide">
+                      &copy; {new Date().getFullYear()} BIAN
+                      <span>KIII</span>. All rights reserved.
+                    </p>
+                    <p className="site-footer-note text-xs">
+                      Crafted with quantum precision
+                    </p>
+                  </div>
+                </footer>
+              </div>
             </motion.div>
           )
         )}

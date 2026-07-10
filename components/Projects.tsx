@@ -38,7 +38,6 @@ export default function Projects() {
             >
               <SpotlightCard
                 className="group h-full rounded-[28px] p-6 transition-all duration-500"
-                spotlightColor="var(--color-primary-dim)"
               >
                 {/* Project number */}
                 <span className="absolute top-6 right-6 text-xs text-primary/30">
