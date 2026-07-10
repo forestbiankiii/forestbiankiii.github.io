@@ -1,0 +1,63 @@
+export const LIQUID_GLASS_STUDIO_CONFIG = {
+  source: "iyinchao/liquid-glass-studio",
+  version: "1.0.0",
+  timestamp: "2026-07-10T14:07:25.809Z",
+  renderer: "webgl",
+  language: "zh-CN",
+  refThickness: 20,
+  refFactor: 1.4,
+  refDispersion: 7,
+  refFresnelRange: 30,
+  refFresnelHardness: 20,
+  refFresnelFactor: 20,
+  glareRange: 30,
+  glareHardness: 20,
+  glareFactor: 10.44,
+  glareConvergence: 80.51,
+  glareOppositeFactor: 80,
+  glareAngle: -45,
+  // Preset exports blurRadius: 1; overridden to 50 for the model panel background.
+  blurRadius: 50,
+  blurEdge: true,
+  tint: { r: 255, g: 255, b: 255, a: 0 },
+  shadowExpand: 15,
+  shadowFactor: 20,
+  shadowPosition: { x: 0, y: 0 },
+  bgType: 4,
+  shapeWidth: 200,
+  shapeHeight: 200,
+  shapeRadius: 50.1,
+  shapeRoundness: 2,
+  mergeRate: 0.1,
+  showShape1: true,
+  springSizeFactor: 3.07,
+  step: 9,
+} as const;
+
+export function getLiquidGlassStudioUniforms() {
+  const config = LIQUID_GLASS_STUDIO_CONFIG;
+
+  return {
+    refThickness: config.refThickness,
+    refFactor: config.refFactor,
+    refDispersion: config.refDispersion,
+    fresnelRange: config.refFresnelRange,
+    fresnelHardness: config.refFresnelHardness / 100,
+    fresnelFactor: config.refFresnelFactor / 100,
+    glareRange: config.glareRange,
+    glareHardness: config.glareHardness / 100,
+    glareFactor: Number((config.glareFactor / 100).toFixed(4)),
+    glareConvergence: config.glareConvergence / 100,
+    glareOppositeFactor: config.glareOppositeFactor / 100,
+    glareAngle: (config.glareAngle * Math.PI) / 180,
+    blurRadius: config.blurRadius,
+    tint: [
+      config.tint.r / 255,
+      config.tint.g / 255,
+      config.tint.b / 255,
+      config.tint.a,
+    ] as [number, number, number, number],
+    shadowExpand: config.shadowExpand,
+    shadowFactor: config.shadowFactor / 100,
+  };
+}
