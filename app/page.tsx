@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Intro from "@/components/Intro";
 import Navbar from "@/components/Navbar";
@@ -76,16 +76,6 @@ export default function Home() {
   );
   const [modelResetVersion, setModelResetVersion] = useState(0);
   const [modelAdjustmentOpen, setModelAdjustmentOpen] = useState(false);
-  const [frameGlassOpacity, setFrameGlassOpacity] = useState({
-    darkTheme: 0.4,
-    lightTheme: 0.35,
-  });
-
-  const frameGlassStyle = {
-    "--frame-glass-dark-opacity": frameGlassOpacity.darkTheme,
-    "--frame-glass-light-opacity": frameGlassOpacity.lightTheme,
-  } as CSSProperties;
-
   useEffect(() => {
     setEntered(hasSeenIntro() && !isPageReload());
     setIntroResolved(true);
@@ -144,7 +134,6 @@ export default function Home() {
       data-site-theme={theme}
       data-model-interaction={modelControls.interactionMode}
       className="relative min-h-screen overflow-hidden text-text"
-      style={frameGlassStyle}
     >
       {entered && (
         <div
@@ -187,52 +176,6 @@ export default function Home() {
               transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
               className={`relative z-10 min-h-screen${modelAdjustmentOpen ? " is-model-adjustment-open" : ""}`}
             >
-              <section
-                className="frame-glass-opacity-controls"
-                aria-labelledby="frame-glass-opacity-title"
-              >
-                <p id="frame-glass-opacity-title">FRAME GLASS</p>
-                <label>
-                  <span>
-                    深色主题·白色
-                    <output>{frameGlassOpacity.darkTheme.toFixed(2)}</output>
-                  </span>
-                  <input
-                    aria-label="深色主题边框玻璃不透明度"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={frameGlassOpacity.darkTheme}
-                    onInput={(event) =>
-                      setFrameGlassOpacity((current) => ({
-                        ...current,
-                        darkTheme: Number(event.currentTarget.value),
-                      }))
-                    }
-                  />
-                </label>
-                <label>
-                  <span>
-                    白色主题·黑色
-                    <output>{frameGlassOpacity.lightTheme.toFixed(2)}</output>
-                  </span>
-                  <input
-                    aria-label="白色主题边框玻璃不透明度"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={frameGlassOpacity.lightTheme}
-                    onInput={(event) =>
-                      setFrameGlassOpacity((current) => ({
-                        ...current,
-                        lightTheme: Number(event.currentTarget.value),
-                      }))
-                    }
-                  />
-                </label>
-              </section>
               <ModelAdjustmentPanel
                 controls={modelControls}
                 onNumericChange={handleModelNumericChange}

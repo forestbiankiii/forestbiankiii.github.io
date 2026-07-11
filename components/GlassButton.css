@@ -3,10 +3,10 @@
   vertical-align: middle;
   color: inherit;
   background: transparent !important;
-  border: 1px solid color-mix(in srgb, var(--color-text) 18%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--color-text) 16%, transparent);
   box-shadow:
-    0 0.65rem 1.75rem color-mix(in srgb, var(--color-text) 8%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 36%, transparent);
+    0 0.5rem 1.25rem color-mix(in srgb, var(--color-text) 7%, transparent),
+    inset 0 0.5px 0 color-mix(in srgb, white 28%, transparent);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -58,10 +58,10 @@
 
 .glass-button-surface:hover {
   transform: translateY(-2px) scale(1.025);
-  border-color: color-mix(in srgb, var(--color-text) 28%, transparent);
+  border-color: color-mix(in srgb, var(--color-text) 24%, transparent);
   box-shadow:
-    0 0.9rem 2.25rem color-mix(in srgb, var(--color-text) 12%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 48%, transparent);
+    0 0.7rem 1.6rem color-mix(in srgb, var(--color-text) 10%, transparent),
+    inset 0 0.5px 0 color-mix(in srgb, white 38%, transparent);
 }
 
 .glass-button-control:focus-visible {

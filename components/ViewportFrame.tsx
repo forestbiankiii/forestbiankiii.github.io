@@ -1,23 +1,14 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import GlassSurface from "@/components/GlassSurface";
+import StudioLiquidGlass from "@/components/StudioLiquidGlass";
+import "@/components/GlassSurface.css";
 
-const outerScreenEdgeSize = 1;
-const innerEdgeSizeRatio = 0.03;
 const outerGradientLayers = [
   { width: 14, opacity: 0.035 },
   { width: 8, opacity: 0.06 },
   { width: 3, opacity: 0.12 },
 ] as const;
-
-function getInnerEdgeSize(distanceToScreenEdge: number) {
-  return Math.ceil(distanceToScreenEdge * innerEdgeSizeRatio);
-}
-
-function getEdgeBlur(edgeSize: number) {
-  return edgeSize * 3;
-}
 
 type OuterGradientRole = "frame" | "nav" | "footer";
 
@@ -55,24 +46,11 @@ interface FrameGeometry extends FrameMetrics {
   frameInnerPath: string;
   navInnerPath: string;
   footerInnerPath: string;
-  frameInnerEdgeSize: number;
-  navInnerEdgeSize: number;
-  footerInnerEdgeSize: number;
-}
-
-interface GlassWindow {
-  id: "top" | "bottom" | "left" | "right";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
 }
 
 type StaticFrameMetrics = Omit<FrameMetrics, "footerTop">;
 
 type FrameGlassStyle = CSSProperties & {
-  "--frame-window-left": string;
-  "--frame-window-top": string;
   "--frame-window-width": string;
   "--frame-window-height": string;
   "--frame-window-mask": string;
@@ -88,16 +66,10 @@ function areFrameGeometriesEqual(
 }
 
 function buildFrameGeometry(metrics: FrameMetrics): FrameGeometry {
-  const { frameWidth, navBottom, height, footerTop } = metrics;
-
   return {
     ...metrics,
     pathData: buildConnectedFramePath(metrics),
     ...buildConnectedFrameEdgePaths(metrics),
-    frameInnerEdgeSize: getInnerEdgeSize(frameWidth),
-    navInnerEdgeSize: getInnerEdgeSize(navBottom),
-    footerInnerEdgeSize:
-      footerTop === null ? 0 : getInnerEdgeSize(height - footerTop),
   };
 }
 
@@ -222,69 +194,14 @@ function readCssPixelValue(styles: CSSStyleDeclaration, property: string) {
   return Number.parseFloat(styles.getPropertyValue(property));
 }
 
-function buildGlassWindows({
-  width,
-  height,
-  frameWidth,
-  radius,
-  navBottom,
-  footerTop,
-  pathData,
-}: FrameGeometry) {
-  if (!pathData) return [];
-
-  const topHeight = Math.max(frameWidth, navBottom);
-  const footerTopEdge = footerTop ?? height - frameWidth;
-  const footerWindowTop = Math.min(
-    height,
-    Math.max(topHeight, footerTopEdge - radius),
-  );
-  const sideWidth = Math.min(width * 0.5, frameWidth + radius);
-  const sideHeight = footerWindowTop - topHeight;
-
-  return [
-    {
-      id: "top",
-      x: 0,
-      y: 0,
-      width,
-      height: topHeight,
-    },
-    {
-      id: "bottom",
-      x: 0,
-      y: footerWindowTop,
-      width,
-      height: height - footerWindowTop,
-    },
-    {
-      id: "left",
-      x: 0,
-      y: topHeight,
-      width: sideWidth,
-      height: sideHeight,
-    },
-    {
-      id: "right",
-      x: width - sideWidth,
-      y: topHeight,
-      width: sideWidth,
-      height: sideHeight,
-    },
-  ] as GlassWindow[];
-}
-
-function buildConnectedFrameMask(
-  { pathData }: FrameGeometry,
-  glassWindow: GlassWindow,
-) {
+function buildConnectedFrameMask({ width, height, pathData }: FrameGeometry) {
   if (!pathData) return "linear-gradient(transparent, transparent)";
 
   const svg = `
     <svg
-      width="${glassWindow.width}"
-      height="${glassWindow.height}"
-      viewBox="${glassWindow.x} ${glassWindow.y} ${glassWindow.width} ${glassWindow.height}"
+      width="${width}"
+      height="${height}"
+      viewBox="0 0 ${width} ${height}"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path d="${pathData}" fill="white" fill-rule="evenodd" clip-rule="evenodd" />
@@ -294,141 +211,16 @@ function buildConnectedFrameMask(
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-function buildConnectedDisplacementMap(
-  {
-    width,
-    height,
-    pathData,
-    frameInnerPath,
-    navInnerPath,
-    footerInnerPath,
-    frameInnerEdgeSize,
-    navInnerEdgeSize,
-    footerInnerEdgeSize,
-  }: FrameGeometry,
-  glassWindow: GlassWindow,
-) {
-  const outerEdgeBlur = getEdgeBlur(outerScreenEdgeSize);
-  const frameInnerBlur = getEdgeBlur(frameInnerEdgeSize);
-  const navInnerBlur = getEdgeBlur(navInnerEdgeSize);
-  const footerInnerBlur = getEdgeBlur(footerInnerEdgeSize);
-  const includeNavInnerEdge = glassWindow.id === "top";
-  const includeFooterInnerEdge = glassWindow.id !== "top";
-  const navInnerEdgeMask = includeNavInnerEdge
-    ? `
-        <mask id="nav-inner-edge-region" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
-          <rect width="${width}" height="${height}" fill="black" />
-          <path d="${navInnerPath}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="${navInnerEdgeSize * 2}" style="filter:blur(${navInnerBlur}px)" />
-        </mask>`
-    : "";
-  const footerInnerEdgeMask = includeFooterInnerEdge
-    ? `
-        <mask id="footer-inner-edge-region" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
-          <rect width="${width}" height="${height}" fill="black" />
-          <path d="${footerInnerPath}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="${footerInnerEdgeSize * 2}" style="filter:blur(${footerInnerBlur}px)" />
-        </mask>`
-    : "";
-  const navInnerEdgeLayer = includeNavInnerEdge
-    ? `
-        <g mask="url(#nav-inner-edge-region)">
-          <rect width="${width}" height="${height}" fill="url(#frame-red-gradient)" />
-          <rect width="${width}" height="${height}" fill="url(#frame-blue-gradient)" style="mix-blend-mode:difference" />
-        </g>`
-    : "";
-  const footerInnerEdgeLayer = includeFooterInnerEdge
-    ? `
-        <g mask="url(#footer-inner-edge-region)">
-          <rect width="${width}" height="${height}" fill="url(#frame-red-gradient)" />
-          <rect width="${width}" height="${height}" fill="url(#frame-blue-gradient)" style="mix-blend-mode:difference" />
-        </g>`
-    : "";
-  const svg = `
-    <svg
-      width="${glassWindow.width}"
-      height="${glassWindow.height}"
-      viewBox="${glassWindow.x} ${glassWindow.y} ${glassWindow.width} ${glassWindow.height}"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient id="frame-red-gradient" x1="100%" y1="0%" x2="0%" y2="0%">
-          <stop offset="0%" stop-color="#0000" />
-          <stop offset="100%" stop-color="red" />
-        </linearGradient>
-        <linearGradient id="frame-blue-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#0000" />
-          <stop offset="100%" stop-color="blue" />
-        </linearGradient>
-        <mask id="frame-glass-shape" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
-          <rect width="${width}" height="${height}" fill="black" />
-          <path d="${pathData}" fill="white" fill-rule="evenodd" clip-rule="evenodd" />
-        </mask>
-        <mask id="outer-edge-region" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
-          <rect width="${width}" height="${height}" fill="black" />
-          <rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="white" stroke-width="${outerScreenEdgeSize * 2}" style="filter:blur(${outerEdgeBlur}px)" />
-        </mask>
-        <mask id="frame-inner-edge-region" maskUnits="userSpaceOnUse" x="0" y="0" width="${width}" height="${height}">
-          <rect width="${width}" height="${height}" fill="black" />
-          <path d="${frameInnerPath}" fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="${frameInnerEdgeSize * 2}" style="filter:blur(${frameInnerBlur}px)" />
-        </mask>
-        ${navInnerEdgeMask}
-        ${footerInnerEdgeMask}
-      </defs>
-      <rect width="${width}" height="${height}" fill="black" />
-      <g mask="url(#frame-glass-shape)">
-        <rect width="${width}" height="${height}" fill="hsl(0 0% 50% / 0.93)" />
-        <g mask="url(#outer-edge-region)">
-          <rect width="${width}" height="${height}" fill="url(#frame-red-gradient)" />
-          <rect width="${width}" height="${height}" fill="url(#frame-blue-gradient)" style="mix-blend-mode:difference" />
-        </g>
-        <g mask="url(#frame-inner-edge-region)">
-          <rect width="${width}" height="${height}" fill="url(#frame-red-gradient)" />
-          <rect width="${width}" height="${height}" fill="url(#frame-blue-gradient)" style="mix-blend-mode:difference" />
-        </g>
-        ${navInnerEdgeLayer}
-        ${footerInnerEdgeLayer}
-      </g>
-    </svg>
-  `;
-
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-function applyFrameGeometryToDom(
-  geometry: FrameGeometry,
-  footerOnly = false,
-) {
-  buildGlassWindows(geometry).forEach((glassWindow) => {
-    if (footerOnly && glassWindow.id === "top") return;
-
-    const surface = document.querySelector<HTMLElement>(
-      `.viewport-frame-glass--${glassWindow.id}`,
-    );
-    if (!surface) return;
-
-    surface.style.setProperty("--frame-window-left", `${glassWindow.x}px`);
-    surface.style.setProperty("--frame-window-top", `${glassWindow.y}px`);
-    surface.style.setProperty("--frame-window-width", `${glassWindow.width}px`);
-    surface.style.setProperty(
-      "--frame-window-height",
-      `${glassWindow.height}px`,
-    );
-
-    // Keep side masks in sync on footer scroll. Updating height alone used to
-    // stretch a stale mask and make both side borders drift inward.
-    const displacementMap = buildConnectedDisplacementMap(
-      geometry,
-      glassWindow,
-    );
-
+function applyFrameGeometryToDom(geometry: FrameGeometry) {
+  const surface = document.querySelector<HTMLElement>(".viewport-frame-glass");
+  if (surface) {
+    surface.style.setProperty("--frame-window-width", `${geometry.width}px`);
+    surface.style.setProperty("--frame-window-height", `${geometry.height}px`);
     surface.style.setProperty(
       "--frame-window-mask",
-      buildConnectedFrameMask(geometry, glassWindow),
+      buildConnectedFrameMask(geometry),
     );
-
-    surface
-      .querySelector("feImage")
-      ?.setAttribute("href", displacementMap);
-  });
+  }
 
   const gradientLayer = document.querySelector<SVGSVGElement>(
     ".viewport-frame-outer-gradient",
@@ -522,7 +314,7 @@ export default function ViewportFrame() {
       }
 
       geometryRef.current = nextGeometry;
-      applyFrameGeometryToDom(nextGeometry, true);
+      applyFrameGeometryToDom(nextGeometry);
     };
 
     measureStaticFrame();
@@ -570,50 +362,27 @@ export default function ViewportFrame() {
     return <div className="viewport-frame-glass-regions" />;
   }
 
-  const glassWindows = buildGlassWindows(geometry);
+  const maskImage = buildConnectedFrameMask(geometry);
+  const frameStyle: FrameGlassStyle = {
+    "--frame-window-width": `${geometry.width}px`,
+    "--frame-window-height": `${geometry.height}px`,
+    "--frame-window-mask": maskImage,
+    inset: 0,
+    WebkitMaskImage: "var(--frame-window-mask)",
+    maskImage: "var(--frame-window-mask)",
+  };
 
   return (
     <div className="viewport-frame-glass-regions">
-      {glassWindows.map((glassWindow) => {
-        const maskImage = buildConnectedFrameMask(geometry, glassWindow);
-        const displacementMap = buildConnectedDisplacementMap(
-          geometry,
-          glassWindow,
-        );
-        const frameStyle: FrameGlassStyle = {
-          "--frame-window-left": `${glassWindow.x}px`,
-          "--frame-window-top": `${glassWindow.y}px`,
-          "--frame-window-width": `${glassWindow.width}px`,
-          "--frame-window-height": `${glassWindow.height}px`,
-          "--frame-window-mask": maskImage,
-          top: "var(--frame-window-top)",
-          ...(glassWindow.id === "right"
-            ? { right: 0 }
-            : { left: "var(--frame-window-left)" }),
-          WebkitMaskImage: "var(--frame-window-mask)",
-          maskImage: "var(--frame-window-mask)",
-        };
-
-        return (
-          <GlassSurface
-            key={glassWindow.id}
-            width="var(--frame-window-width)"
-            height="var(--frame-window-height)"
-            borderRadius={0}
-            brightness={50}
-            opacity={0.93}
-            displace={0.5}
-            saturation={1}
-            distortionScale={-300}
-            redOffset={0}
-            greenOffset={10}
-            blueOffset={20}
-            displacementMap={displacementMap}
-            className={`viewport-frame-glass viewport-frame-glass--${glassWindow.id}`}
-            style={frameStyle}
-          />
-        );
-      })}
+      <StudioLiquidGlass
+        width="var(--frame-window-width)"
+        height="var(--frame-window-height)"
+        borderRadius={0}
+        maxDpr={1}
+        capturePad={40}
+        className="viewport-frame-glass"
+        style={frameStyle}
+      />
       <svg
         className="viewport-frame-outer-gradient"
         width={geometry.width}

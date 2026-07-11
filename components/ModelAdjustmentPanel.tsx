@@ -7,6 +7,8 @@ import {
   getModelPanelPresentation,
   getModelPanelTriggerScale,
   MODEL_CONTROL_RANGES,
+  MODEL_PANEL_CORNER_RADIUS,
+  MODEL_PANEL_TRIGGER_SIZE,
   type ModelControlState,
   type ModelNumericControl,
 } from "./modelControls";
@@ -90,7 +92,7 @@ export default function ModelAdjustmentPanel({
     }
   };
 
-  const triggerSize = "calc(3.75rem * var(--model-trigger-scale, 1))";
+  const triggerSize = `calc(${MODEL_PANEL_TRIGGER_SIZE}px * var(--model-trigger-scale, 1))`;
 
   return (
     <div
@@ -101,11 +103,11 @@ export default function ModelAdjustmentPanel({
       <StudioLiquidGlass
         width="min(20rem, calc(100vw - 2rem))"
         height="auto"
-        borderRadius={24}
+        borderRadius={MODEL_PANEL_CORNER_RADIUS}
         className={panelPresentation.className}
         expanded={open}
         morphFromCircle
-        circleSize={60}
+        circleSize={MODEL_PANEL_TRIGGER_SIZE}
         onMorphProgress={(progress) => {
           morphProgressRef.current = progress;
           syncTriggerScale();
@@ -193,7 +195,7 @@ export default function ModelAdjustmentPanel({
         width={triggerSize}
         height={triggerSize}
         borderRadius={999}
-        blurRadius={1}
+        capturePad={48}
         className="model-adjustment-trigger-glass"
       >
         <button

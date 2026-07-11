@@ -1,19 +1,44 @@
 .card-spotlight {
   position: relative;
-  border-radius: var(--liquid-glass-radius, 1.5rem);
-  border: 1px solid var(--color-card-border);
-  background: var(--liquid-glass-tint, transparent);
-  backdrop-filter: blur(var(--liquid-glass-blur, 50px));
-  -webkit-backdrop-filter: blur(var(--liquid-glass-blur, 50px));
-  padding: 2rem;
+  border-radius: var(--card-glass-radius, 28px);
+  border: 0.5px solid color-mix(in srgb, var(--color-text) 16%, transparent);
+  background: transparent;
+  backdrop-filter: blur(var(--card-glass-blur, 20px)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--card-glass-blur, 20px)) saturate(1.35);
+  box-shadow:
+    0 0.5rem 1.25rem color-mix(in srgb, var(--color-text) 7%, transparent),
+    inset 0 0.5px 0 color-mix(in srgb, white 28%, transparent);
   overflow: hidden;
   isolation: isolate;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .card-spotlight > * {
+  position: relative;
   z-index: 1;
 }
 
-.card-spotlight > :not(.absolute):not(.fixed):not(.sticky) {
-  position: relative;
+.card-spotlight > :is(.absolute, .fixed, .sticky) {
+  z-index: 2;
+}
+
+.card-spotlight:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-text) 24%, transparent);
+  box-shadow:
+    0 0.7rem 1.6rem color-mix(in srgb, var(--color-text) 10%, transparent),
+    inset 0 0.5px 0 color-mix(in srgb, white 38%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-spotlight {
+    transition: none;
+  }
+
+  .card-spotlight:hover {
+    transform: none;
+  }
 }

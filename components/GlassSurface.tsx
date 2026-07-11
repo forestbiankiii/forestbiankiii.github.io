@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import "./GlassSurface.css";
+import { getButtonEdgeSize, getEdgeBlur } from "@/components/glassEdgeSizing";
 
 type DisplacementChannel = "R" | "G" | "B";
 
@@ -105,8 +106,12 @@ export default function GlassSurface({
     const rect = containerRef.current?.getBoundingClientRect();
     const actualWidth = rect?.width || 400;
     const actualHeight = rect?.height || 200;
-    const edgeSize = Math.min(actualWidth, actualHeight) * (borderWidth * 0.5);
-    const edgeBlur = edgeSize * 3;
+    const edgeSize = getButtonEdgeSize(
+      actualWidth,
+      actualHeight,
+      borderWidth,
+    );
+    const edgeBlur = getEdgeBlur(edgeSize);
     const edgeInset = edgeSize * 0.5;
     const numericBorderRadius =
       typeof borderRadius === "number"

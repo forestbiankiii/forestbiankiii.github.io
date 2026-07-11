@@ -39,28 +39,35 @@ import {
 import styles from "./StudioLiquidGlass.module.css";
 
 interface StudioLiquidGlassProps {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   width: number | string;
   height: number | string;
   borderRadius: number;
   /** Override studio blur radius (panel uses config default, trigger can use 1). */
   blurRadius?: number;
+  /** Cap device pixel ratio for large surfaces (frame). */
+  maxDpr?: number;
+  /** Extra capture margin around the shape; morph needs more than static glass. */
+  capturePad?: number;
   /** When set with morphFromCircle, animates glass SDF between circle and rect. */
   expanded?: boolean;
   morphFromCircle?: boolean;
   circleSize?: number;
   /** Reports morph progress (0 closed → 1 open). */
   onMorphProgress?: (progress: number) => void;
+  style?: CSSProperties;
 }
 
 type StudioGlassStyle = CSSProperties & {
   "--studio-glass-pad": string;
+  "--studio-glass-blur": string;
   "--studio-shape-progress"?: string;
   "--studio-morph-canvas-opacity"?: string;
 };
 
 const CAPTURE_PAD = 96;
+const IDLE_POLL_MS = 240;
 
 const OVERLAY_BG_SHADER = `#version 300 es
 precision highp float;
@@ -90,8 +97,8 @@ function captureBehindPanel(
   target: HTMLCanvasElement,
   glassRect: DOMRect,
   fill: string,
+  dpr = Math.min(window.devicePixelRatio || 1, 2),
 ) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const cssW = Math.max(1, Math.round(glassRect.width));
   const cssH = Math.max(1, Math.round(glassRect.height));
   const pixelW = Math.max(1, Math.round(cssW * dpr));
@@ -142,34 +149,50 @@ function uploadCanvasTexture(
   gl: WebGL2RenderingContext,
   texture: WebGLTexture,
   source: HTMLCanvasElement,
+  reuseSubImage: boolean,
 ) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    source,
-  );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  if (reuseSubImage) {
+    gl.texSubImage2D(
+      gl.TEXTURE_2D,
+      0,
+      0,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      source,
+    );
+  } else {
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      source,
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
 }
 
 export default function StudioLiquidGlass({
-  children,
+  children = null,
   className = "",
   width,
   height,
   borderRadius,
   blurRadius: blurRadiusProp,
+  maxDpr = 2,
+  capturePad = CAPTURE_PAD,
   expanded = true,
   morphFromCircle = false,
   circleSize = MODEL_PANEL_TRIGGER_SIZE,
   onMorphProgress,
+  style: styleProp,
 }: StudioLiquidGlassProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -194,6 +217,7 @@ export default function StudioLiquidGlass({
       blurRadiusProp ?? LIQUID_GLASS_STUDIO_CONFIG.blurRadius,
     ),
   );
+  const pad = Math.max(16, Math.round(capturePad));
 
   useEffect(() => {
     onMorphProgressRef.current = onMorphProgress;
@@ -245,6 +269,11 @@ export default function StudioLiquidGlass({
     let disposed = false;
     let lastBufferW = 0;
     let lastBufferH = 0;
+    let lastTextureW = 0;
+    let lastTextureH = 0;
+    let lastDrawAt = 0;
+    let pageVisible = document.visibilityState !== "hidden";
+    let onScreen = true;
 
     const captureCanvas = document.createElement("canvas");
     const blurWeights = computeGaussianKernelByRadius(blurRadius);
@@ -284,11 +313,14 @@ export default function StudioLiquidGlass({
       return;
     }
 
+    const scheduleNext = () => {
+      if (disposed) return;
+      frameId = window.requestAnimationFrame(renderFrame);
+    };
+
     const renderFrame = (now: number) => {
       if (disposed || !renderer || !gl || !bgTexture) return;
 
-      const last = lastFrameRef.current ?? now;
-      const dtMs = now - last;
       lastFrameRef.current = now;
 
       if (morphFromCircle) {
@@ -324,12 +356,30 @@ export default function StudioLiquidGlass({
         (closing || opening || morphClockRef.current.animating);
       container.dataset.morphing = morphing || closing ? "true" : "false";
 
+      // Sleep while the tab is backgrounded or the surface is off-screen,
+      // except during morph where we must keep the animation clock alive.
+      if ((!pageVisible || !onScreen) && !morphing) {
+        if (morphFromCircle && !expandedRef.current && progress <= 0.0005) {
+          container.style.setProperty("--studio-morph-canvas-opacity", "0");
+          container.style.setProperty("--studio-shape-progress", "0");
+          const shell = container.parentElement;
+          shell?.style.setProperty("--model-trigger-glass-opacity", "1");
+          shell?.classList.remove("is-morphing");
+          container.dataset.morphing = "false";
+        }
+        if (now - lastDrawAt < IDLE_POLL_MS) {
+          scheduleNext();
+          return;
+        }
+        lastDrawAt = now;
+        scheduleNext();
+        return;
+      }
+
       const panelRect = container.getBoundingClientRect();
-      const styles = getComputedStyle(container);
       const visible =
         panelRect.width > 1 &&
         panelRect.height > 1 &&
-        styles.visibility !== "hidden" &&
         (progress > 0.0005 || !morphFromCircle || expandedRef.current);
 
       if (!visible) {
@@ -343,11 +393,18 @@ export default function StudioLiquidGlass({
           shell?.classList.remove("is-morphing");
           container.dataset.morphing = "false";
         }
-        frameId = window.requestAnimationFrame(renderFrame);
+        if (now - lastDrawAt < IDLE_POLL_MS && !morphing) {
+          scheduleNext();
+          return;
+        }
+        lastDrawAt = now;
+        scheduleNext();
         return;
       }
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      lastDrawAt = now;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, Math.max(1, maxDpr));
       const panelW = Math.max(1, container.clientWidth);
       const panelH = Math.max(1, container.clientHeight);
       const triggerEl = container.parentElement?.querySelector(
@@ -362,12 +419,14 @@ export default function StudioLiquidGlass({
           : triggerEl?.clientWidth || circleSize,
       );
       // Extra bottom pad so the sticky blob can reach the trigger button.
-      const bottomPad = Math.max(
-        CAPTURE_PAD,
-        MODEL_PANEL_GAP + liveCircleSize + CAPTURE_PAD * 0.35,
-      );
-      const cssW = Math.max(1, Math.round(panelW + CAPTURE_PAD * 2));
-      const cssH = Math.max(1, Math.round(panelH + CAPTURE_PAD + bottomPad));
+      const bottomPad = morphFromCircle
+        ? Math.max(
+            pad,
+            MODEL_PANEL_GAP + liveCircleSize + pad * 0.35,
+          )
+        : pad;
+      const cssW = Math.max(1, Math.round(panelW + pad * 2));
+      const cssH = Math.max(1, Math.round(panelH + pad + bottomPad));
       const bufferW = Math.max(1, Math.round(cssW * dpr));
       const bufferH = Math.max(1, Math.round(cssH * dpr));
 
@@ -379,8 +438,8 @@ export default function StudioLiquidGlass({
       }
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
-      canvas.style.top = `${-CAPTURE_PAD}px`;
-      canvas.style.left = `${-CAPTURE_PAD}px`;
+      canvas.style.top = `${-pad}px`;
+      canvas.style.left = `${-pad}px`;
 
       if (bufferW !== lastBufferW || bufferH !== lastBufferH) {
         lastBufferW = bufferW;
@@ -392,8 +451,13 @@ export default function StudioLiquidGlass({
       const canvasRect = canvas.getBoundingClientRect();
       const fallback = getThemeFallback(container);
       const fill = fallback[0] >= 1 ? "#ffffff" : "#000000";
-      const captured = captureBehindPanel(captureCanvas, canvasRect, fill);
-      uploadCanvasTexture(gl, bgTexture, captureCanvas);
+      const captured = captureBehindPanel(captureCanvas, canvasRect, fill, dpr);
+      const reuseTexture =
+        captureCanvas.width === lastTextureW &&
+        captureCanvas.height === lastTextureH;
+      uploadCanvasTexture(gl, bgTexture, captureCanvas, reuseTexture);
+      lastTextureW = captureCanvas.width;
+      lastTextureH = captureCanvas.height;
 
       const shape = morphFromCircle
         ? getModelPanelGlassShape({
@@ -422,6 +486,7 @@ export default function StudioLiquidGlass({
             unifiedMorph: false,
             travelT: 1,
             growT: 1,
+            phase: 2,
           };
 
       container.style.setProperty(
@@ -443,8 +508,8 @@ export default function StudioLiquidGlass({
       }
 
       // Panel coords are top-left; Studio / gl_FragCoord are bottom-left.
-      const toGlX = (x: number) => (CAPTURE_PAD + x) * dpr;
-      const toGlY = (y: number) => (cssH - (CAPTURE_PAD + y)) * dpr;
+      const toGlX = (x: number) => (pad + x) * dpr;
+      const toGlY = (y: number) => (cssH - (pad + y)) * dpr;
       const centerX = toGlX(shape.centerX);
       const centerY = toGlY(shape.centerY);
       const shape1X = toGlX(shape.shape1X);
@@ -466,6 +531,9 @@ export default function StudioLiquidGlass({
         u_showShape1: shape.showShape1 ? 1 : 0,
         u_shape1Pos: [shape1X, shape1Y],
         u_shape1Radius: shape.shape1Radius,
+        // Rim follows merged SDF each frame (morph + resting shapes).
+        u_shadowExpand: uniforms.shadowExpand,
+        u_shadowFactor: uniforms.shadowFactor,
       });
 
       gl.enable(gl.BLEND);
@@ -501,26 +569,48 @@ export default function StudioLiquidGlass({
         markedReady = true;
         setReady(true);
       }
-      frameId = window.requestAnimationFrame(renderFrame);
+      scheduleNext();
     };
 
-    frameId = window.requestAnimationFrame(renderFrame);
+    const onVisibility = () => {
+      pageVisible = document.visibilityState !== "hidden";
+      if (pageVisible) lastDrawAt = 0;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const io =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(
+            ([entry]) => {
+              onScreen = entry?.isIntersecting ?? true;
+              if (onScreen) lastDrawAt = 0;
+            },
+            { root: null, threshold: 0 },
+          )
+        : null;
+    io?.observe(container);
+
+    scheduleNext();
 
     return () => {
       disposed = true;
       lastFrameRef.current = null;
       window.cancelAnimationFrame(frameId);
+      document.removeEventListener("visibilitychange", onVisibility);
+      io?.disconnect();
       if (bgTexture && gl) gl.deleteTexture(bgTexture);
       renderer?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blurRadius, borderRadius, morphFromCircle, circleSize]);
+  }, [blurRadius, borderRadius, maxDpr, pad, morphFromCircle, circleSize]);
 
   const style: StudioGlassStyle = {
+    ...styleProp,
     width: typeof width === "number" ? `${width}px` : width,
     height: typeof height === "number" ? `${height}px` : height,
     borderRadius: `${borderRadius}px`,
-    "--studio-glass-pad": `${CAPTURE_PAD}px`,
+    "--studio-glass-pad": `${pad}px`,
+    "--studio-glass-blur": `${blurRadius}px`,
   };
   if (morphFromCircle) {
     style["--studio-shape-progress"] = expanded ? "1" : "0";

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
@@ -7,12 +7,25 @@ const styles = readFileSync(
   new URL("../components/GlassSurface.css", import.meta.url),
   "utf8",
 );
+const globals = readFileSync(
+  new URL("../app/globals.css", import.meta.url),
+  "utf8",
+);
 
-test("exposes independent frame-only opacity sliders for both themes", () => {
-  assert.match(page, /frameGlassOpacity/);
-  assert.match(page, /深色主题·白色/);
-  assert.match(page, /白色主题·黑色/);
-  assert.match(styles, /--frame-glass-dark-opacity/);
-  assert.match(styles, /--frame-glass-light-opacity/);
-  assert.match(styles, /--viewport-frame-glass-opacity/);
+test("removes frame theme tint controls and leaves the frame background transparent", () => {
+  assert.doesNotMatch(page, /FrameGlassOpacityControls|frameGlassOpacity/);
+  assert.doesNotMatch(globals, /frame-glass-opacity-controls/);
+  assert.doesNotMatch(globals, /--glass-tint-(rgb|opacity)/);
+  assert.doesNotMatch(styles, /frame-glass-(dark|light)-opacity/);
+  assert.doesNotMatch(styles, /viewport-frame-glass-opacity/);
+  assert.match(
+    styles,
+    /\.studio-liquid-glass\.viewport-frame-glass\s*\{[\s\S]*?background:\s*transparent/,
+  );
+  assert.equal(
+    existsSync(
+      new URL("../components/FrameGlassOpacityControls.tsx", import.meta.url),
+    ),
+    false,
+  );
 });

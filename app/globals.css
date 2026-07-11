@@ -6,8 +6,6 @@
   --color-primary-dim: rgba(255, 255, 255, 0.15);
   --color-primary-glow: rgba(255, 255, 255, 0.4);
   --color-bg: #000000;
-  --glass-tint-rgb: 255 255 255;
-  --glass-tint-opacity: 0.4;
   --viewport-frame-ink: #ffffff;
   --color-bg-card: #0d0d0d;
   --color-bg-card-hover: #171717;
@@ -42,8 +40,6 @@
   --color-primary-dim: rgba(255, 255, 255, 0.15);
   --color-primary-glow: rgba(255, 255, 255, 0.4);
   --color-bg: #000000;
-  --glass-tint-rgb: 255 255 255;
-  --glass-tint-opacity: 0.4;
   --viewport-frame-ink: #ffffff;
   --color-bg-card: #0d0d0d;
   --color-bg-card-hover: #171717;
@@ -68,8 +64,6 @@
   --color-primary-dim: rgba(0, 0, 0, 0.15);
   --color-primary-glow: rgba(0, 0, 0, 0.35);
   --color-bg: #ffffff;
-  --glass-tint-rgb: 0 0 0;
-  --glass-tint-opacity: 0.35;
   --viewport-frame-ink: #000000;
   --color-bg-card: #f5f5f5;
   --color-bg-card-hover: #ececec;
@@ -126,59 +120,12 @@ body {
   right: clamp(1.5rem, 3vw, 3rem);
   bottom: clamp(1.5rem, 3vw, 3rem);
   z-index: 80;
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 4.5rem;
+  height: 4.5rem;
   overflow: visible;
   color: var(--color-text);
   --model-trigger-scale: 1;
   --model-trigger-glass-opacity: 1;
-}
-
-.frame-glass-opacity-controls {
-  position: fixed;
-  top: calc(var(--nav-shell-height) + 1rem);
-  right: clamp(1.25rem, 3vw, 3rem);
-  z-index: 70;
-  width: min(19rem, calc(100vw - 2.5rem));
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--color-card-border);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
-  box-shadow: 0 0.75rem 2.5rem color-mix(in srgb, var(--color-text) 12%, transparent);
-  color: var(--color-text);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.frame-glass-opacity-controls > p {
-  margin: 0 0 0.85rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.18em;
-}
-
-.frame-glass-opacity-controls label {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.frame-glass-opacity-controls label + label {
-  margin-top: 0.8rem;
-}
-
-.frame-glass-opacity-controls span {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  font-size: 0.78rem;
-}
-
-.frame-glass-opacity-controls output {
-  font-variant-numeric: tabular-nums;
-}
-
-.frame-glass-opacity-controls input {
-  width: 100%;
-  accent-color: var(--color-text);
 }
 
 .site-content-layer {

@@ -59,7 +59,7 @@ export default function GlassButton({
       width={icon ? "2.75rem" : "fit-content"}
       height={icon ? "2.75rem" : "auto"}
       borderRadius={999}
-      blurRadius={1}
+      capturePad={48}
       className={`glass-button-surface ${
         icon ? "glass-button-surface--icon" : ""
       } ${surfaceClassName}`.trim()}
