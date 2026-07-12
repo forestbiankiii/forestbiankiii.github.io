@@ -26,6 +26,23 @@ import {
   VertexShader,
 } from "./liquid-glass-studio/shaders";
 import {
+  GPUMultiPassRenderer,
+  createCanvasGPUTexture,
+  uploadCanvasToGPUTexture,
+} from "./liquid-glass-studio/GPUUtils";
+import { detectWebGPU } from "./liquid-glass-studio/gpuDetect";
+import {
+  isDomTextCaptureMutation,
+  paintDomLayer,
+} from "./liquid-glass-studio/domTextCapture";
+import {
+  WgslFragmentBgShader,
+  WgslFragmentHBlurShader,
+  WgslFragmentMainShader,
+  WgslFragmentVBlurShader,
+  WgslVertexShader,
+} from "./liquid-glass-studio/wgslShaders";
+import {
   LIQUID_GLASS_STUDIO_CONFIG,
   getLiquidGlassStudioUniforms,
 } from "./liquidGlassStudioConfig";
@@ -50,6 +67,12 @@ interface StudioLiquidGlassProps {
   maxDpr?: number;
   /** Extra capture margin around the shape; morph needs more than static glass. */
   capturePad?: number;
+  /** Paint intersecting page text into the sampled background texture. */
+  captureDomText?: boolean;
+  /** Multiplier for Fresnel and glare highlights without changing glass alpha. */
+  highlightIntensity?: number;
+  /** Enables the shader's wide SDF halo outside the glass shape. */
+  shaderHalo?: boolean;
   /** When set with morphFromCircle, animates glass SDF between circle and rect. */
   expanded?: boolean;
   morphFromCircle?: boolean;
@@ -97,6 +120,7 @@ function captureBehindPanel(
   target: HTMLCanvasElement,
   glassRect: DOMRect,
   fill: string,
+  domTextLayer: HTMLCanvasElement | null,
   dpr = Math.min(window.devicePixelRatio || 1, 2),
 ) {
   const cssW = Math.max(1, Math.round(glassRect.width));
@@ -117,32 +141,37 @@ function captureBehindPanel(
   const modelCanvas = document.querySelector<HTMLCanvasElement>(
     ".site-model-background canvas",
   );
-  if (!modelCanvas || modelCanvas.width < 2 || modelCanvas.height < 2) {
-    return false;
+  if (modelCanvas && modelCanvas.width >= 2 && modelCanvas.height >= 2) {
+    const modelRect = modelCanvas.getBoundingClientRect();
+    if (modelRect.width >= 1 && modelRect.height >= 1) {
+      const scaleX = modelCanvas.width / modelRect.width;
+      const scaleY = modelCanvas.height / modelRect.height;
+      try {
+        ctx.drawImage(
+          modelCanvas,
+          (glassRect.left - modelRect.left) * scaleX,
+          (glassRect.top - modelRect.top) * scaleY,
+          cssW * scaleX,
+          cssH * scaleY,
+          0,
+          0,
+          pixelW,
+          pixelH,
+        );
+      } catch {
+        // The theme fill remains a valid texture if the model canvas is lost.
+      }
+    }
   }
 
-  const modelRect = modelCanvas.getBoundingClientRect();
-  if (modelRect.width < 1 || modelRect.height < 1) return false;
-
-  const scaleX = modelCanvas.width / modelRect.width;
-  const scaleY = modelCanvas.height / modelRect.height;
-
-  try {
-    ctx.drawImage(
-      modelCanvas,
-      (glassRect.left - modelRect.left) * scaleX,
-      (glassRect.top - modelRect.top) * scaleY,
-      cssW * scaleX,
-      cssH * scaleY,
-      0,
-      0,
-      pixelW,
-      pixelH,
-    );
-    return true;
-  } catch {
-    return false;
+  if (
+    domTextLayer &&
+    domTextLayer.width === pixelW &&
+    domTextLayer.height === pixelH
+  ) {
+    ctx.drawImage(domTextLayer, 0, 0, pixelW, pixelH);
   }
+  return true;
 }
 
 function uploadCanvasTexture(
@@ -188,6 +217,9 @@ export default function StudioLiquidGlass({
   blurRadius: blurRadiusProp,
   maxDpr = 2,
   capturePad = CAPTURE_PAD,
+  captureDomText = false,
+  highlightIntensity = 1,
+  shaderHalo = true,
   expanded = true,
   morphFromCircle = false,
   circleSize = MODEL_PANEL_TRIGGER_SIZE,
@@ -209,6 +241,10 @@ export default function StudioLiquidGlass({
   });
   const lastFrameRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
+  const [backend, setBackend] = useState<"detecting" | "webgpu" | "webgl">(
+    "detecting",
+  );
+  const gpuDeviceRef = useRef<GPUDevice | null>(null);
   const uniforms = getLiquidGlassStudioUniforms();
   const blurRadius = Math.max(
     0,
@@ -218,6 +254,7 @@ export default function StudioLiquidGlass({
     ),
   );
   const pad = Math.max(16, Math.round(capturePad));
+  const opticalHighlight = Math.max(0, Math.min(1, highlightIntensity));
 
   useEffect(() => {
     onMorphProgressRef.current = onMorphProgress;
@@ -258,13 +295,27 @@ export default function StudioLiquidGlass({
   }, [expanded, morphFromCircle]);
 
   useEffect(() => {
+    let active = true;
+    detectWebGPU().then((result) => {
+      if (!active) return;
+      gpuDeviceRef.current = result.supported ? result.device ?? null : null;
+      setReady(false);
+      setBackend(result.supported && result.device ? "webgpu" : "webgl");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
-    if (!container || !canvas) return;
+    if (!container || !canvas || backend === "detecting") return;
 
-    let renderer: MultiPassRenderer | null = null;
+    let renderer: MultiPassRenderer | GPUMultiPassRenderer | null = null;
     let gl: WebGL2RenderingContext | null = null;
-    let bgTexture: WebGLTexture | null = null;
+    const gpuDevice = backend === "webgpu" ? gpuDeviceRef.current : null;
+    let bgTexture: WebGLTexture | GPUTexture | null = null;
     let frameId = 0;
     let disposed = false;
     let lastBufferW = 0;
@@ -276,41 +327,121 @@ export default function StudioLiquidGlass({
     let onScreen = true;
 
     const captureCanvas = document.createElement("canvas");
+    const domTextLayer = captureDomText
+      ? document.createElement("canvas")
+      : null;
+    let domTextDirty = captureDomText;
+    const markDomTextDirty = () => {
+      domTextDirty = true;
+    };
     const blurWeights = computeGaussianKernelByRadius(blurRadius);
     while (blurWeights.length < 201) blurWeights.push(0);
     let markedReady = false;
 
     try {
-      // MultiPassRenderer creates its own webgl2 context from the canvas.
-      renderer = new MultiPassRenderer(canvas, [
-        {
-          name: "bgPass",
-          shader: { vertex: VertexShader, fragment: OVERLAY_BG_SHADER },
-        },
-        {
-          name: "vBlurPass",
-          shader: { vertex: VertexShader, fragment: FragmentBgVblurShader },
-          inputs: { u_prevPassTexture: "bgPass" },
-        },
-        {
-          name: "hBlurPass",
-          shader: { vertex: VertexShader, fragment: FragmentBgHblurShader },
-          inputs: { u_prevPassTexture: "vBlurPass" },
-        },
-        {
-          name: "mainPass",
-          shader: { vertex: VertexShader, fragment: FragmentMainShader },
-          inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
-          outputToScreen: true,
-        },
-      ]);
-      gl = canvas.getContext("webgl2");
-      if (!gl) throw new Error("WebGL2 unavailable");
-      bgTexture = gl.createTexture();
-      if (!bgTexture) throw new Error("Failed to create bg texture");
+      if (backend === "webgpu") {
+        if (!gpuDevice) throw new Error("WebGPU device unavailable");
+        renderer = new GPUMultiPassRenderer(
+          canvas,
+          [
+            {
+              name: "bgPass",
+              shader: {
+                vertex: WgslVertexShader,
+                fragment: WgslFragmentBgShader,
+              },
+            },
+            {
+              name: "vBlurPass",
+              shader: {
+                vertex: WgslVertexShader,
+                fragment: WgslFragmentVBlurShader,
+              },
+              inputs: { u_prevPassTexture: "bgPass" },
+            },
+            {
+              name: "hBlurPass",
+              shader: {
+                vertex: WgslVertexShader,
+                fragment: WgslFragmentHBlurShader,
+              },
+              inputs: { u_prevPassTexture: "vBlurPass" },
+            },
+            {
+              name: "mainPass",
+              shader: {
+                vertex: WgslVertexShader,
+                fragment: WgslFragmentMainShader,
+              },
+              inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
+              outputToScreen: true,
+            },
+          ],
+          gpuDevice,
+        );
+      } else {
+        renderer = new MultiPassRenderer(canvas, [
+          {
+            name: "bgPass",
+            shader: { vertex: VertexShader, fragment: OVERLAY_BG_SHADER },
+          },
+          {
+            name: "vBlurPass",
+            shader: { vertex: VertexShader, fragment: FragmentBgVblurShader },
+            inputs: { u_prevPassTexture: "bgPass" },
+          },
+          {
+            name: "hBlurPass",
+            shader: { vertex: VertexShader, fragment: FragmentBgHblurShader },
+            inputs: { u_prevPassTexture: "vBlurPass" },
+          },
+          {
+            name: "mainPass",
+            shader: { vertex: VertexShader, fragment: FragmentMainShader },
+            inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
+            outputToScreen: true,
+          },
+        ]);
+        gl = canvas.getContext("webgl2");
+        if (!gl) throw new Error("WebGL2 unavailable");
+        bgTexture = gl.createTexture();
+        if (!bgTexture) throw new Error("Failed to create bg texture");
+      }
     } catch (error) {
       console.error("[StudioLiquidGlass] init failed", error);
+      if (backend === "webgpu") setBackend("webgl");
       return;
+    }
+
+    const contentRoot = captureDomText
+      ? document.querySelector(".site-content-layer")
+      : null;
+    const contentObserver = contentRoot
+      ? new MutationObserver((mutations) => {
+          if (mutations.some(isDomTextCaptureMutation)) markDomTextDirty();
+        })
+      : null;
+    contentObserver?.observe(contentRoot!, {
+      attributes: true,
+      attributeFilter: ["style", "class"],
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    const themeObserver = captureDomText
+      ? new MutationObserver(markDomTextDirty)
+      : null;
+    themeObserver?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-site-theme"],
+    });
+    if (captureDomText) {
+      window.addEventListener("scroll", markDomTextDirty);
+      window.addEventListener("resize", markDomTextDirty);
+      contentRoot?.addEventListener("transitionend", markDomTextDirty);
+      contentRoot?.addEventListener("animationend", markDomTextDirty);
+      contentRoot?.addEventListener("load", markDomTextDirty, true);
+      document.fonts?.addEventListener("loadingdone", markDomTextDirty);
     }
 
     const scheduleNext = () => {
@@ -319,7 +450,9 @@ export default function StudioLiquidGlass({
     };
 
     const renderFrame = (now: number) => {
-      if (disposed || !renderer || !gl || !bgTexture) return;
+      if (disposed || !renderer) return;
+      if (backend === "webgl" && (!gl || !bgTexture)) return;
+      if (backend === "webgpu" && !gpuDevice) return;
 
       lastFrameRef.current = now;
 
@@ -445,17 +578,60 @@ export default function StudioLiquidGlass({
         lastBufferW = bufferW;
         lastBufferH = bufferH;
         renderer.resize(bufferW, bufferH);
-        gl.viewport(0, 0, bufferW, bufferH);
+        gl?.viewport(0, 0, bufferW, bufferH);
       }
 
       const canvasRect = canvas.getBoundingClientRect();
       const fallback = getThemeFallback(container);
       const fill = fallback[0] >= 1 ? "#ffffff" : "#000000";
-      const captured = captureBehindPanel(captureCanvas, canvasRect, fill, dpr);
+      if (
+        domTextLayer &&
+        (domTextDirty ||
+          domTextLayer.width !== bufferW ||
+          domTextLayer.height !== bufferH)
+      ) {
+        const glyphCount = paintDomLayer(
+          domTextLayer,
+          canvasRect,
+          dpr,
+          markDomTextDirty,
+        );
+        container.dataset.domTextGlyphs = String(glyphCount);
+        domTextDirty = false;
+      }
+      const captured = captureBehindPanel(
+        captureCanvas,
+        canvasRect,
+        fill,
+        domTextLayer,
+        dpr,
+      );
       const reuseTexture =
         captureCanvas.width === lastTextureW &&
         captureCanvas.height === lastTextureH;
-      uploadCanvasTexture(gl, bgTexture, captureCanvas, reuseTexture);
+
+      if (backend === "webgpu" && gpuDevice) {
+        if (!bgTexture || !reuseTexture) {
+          if (bgTexture) (bgTexture as GPUTexture).destroy();
+          bgTexture = createCanvasGPUTexture(
+            gpuDevice,
+            captureCanvas.width,
+            captureCanvas.height,
+          );
+        }
+        uploadCanvasToGPUTexture(
+          gpuDevice,
+          bgTexture as GPUTexture,
+          captureCanvas,
+        );
+      } else if (gl && bgTexture) {
+        uploadCanvasTexture(
+          gl,
+          bgTexture as WebGLTexture,
+          captureCanvas,
+          reuseTexture,
+        );
+      }
       lastTextureW = captureCanvas.width;
       lastTextureH = captureCanvas.height;
 
@@ -467,6 +643,7 @@ export default function StudioLiquidGlass({
             borderRadius,
             circleSize: liveCircleSize,
             gap: MODEL_PANEL_GAP,
+            opening: expandedRef.current,
           })
         : {
             shapeWidth: panelW,
@@ -533,17 +710,21 @@ export default function StudioLiquidGlass({
         u_shape1Radius: shape.shape1Radius,
         // Rim follows merged SDF each frame (morph + resting shapes).
         u_shadowExpand: uniforms.shadowExpand,
-        u_shadowFactor: uniforms.shadowFactor,
+        u_shadowFactor: shaderHalo ? uniforms.shadowFactor : 0,
       });
 
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (gl) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
 
       renderer.render({
         bgPass: {
           u_bgTexture: bgTexture,
+          u_bgType: 4,
+          u_bgTextureRatio: bufferW / bufferH,
           u_bgTextureReady: captured ? 1 : 0,
           u_fallbackColor: [...fallback],
         },
@@ -554,12 +735,12 @@ export default function StudioLiquidGlass({
           u_refDispersion: uniforms.refDispersion,
           u_refFresnelRange: uniforms.fresnelRange,
           u_refFresnelHardness: uniforms.fresnelHardness,
-          u_refFresnelFactor: uniforms.fresnelFactor,
+          u_refFresnelFactor: uniforms.fresnelFactor * opticalHighlight,
           u_glareRange: uniforms.glareRange,
           u_glareHardness: uniforms.glareHardness,
           u_glareConvergence: uniforms.glareConvergence,
           u_glareOppositeFactor: uniforms.glareOppositeFactor,
-          u_glareFactor: uniforms.glareFactor,
+          u_glareFactor: uniforms.glareFactor * opticalHighlight,
           u_blurEdge: LIQUID_GLASS_STUDIO_CONFIG.blurEdge ? 1 : 0,
           STEP: LIQUID_GLASS_STUDIO_CONFIG.step,
         },
@@ -598,11 +779,35 @@ export default function StudioLiquidGlass({
       window.cancelAnimationFrame(frameId);
       document.removeEventListener("visibilitychange", onVisibility);
       io?.disconnect();
-      if (bgTexture && gl) gl.deleteTexture(bgTexture);
+      contentObserver?.disconnect();
+      themeObserver?.disconnect();
+      if (captureDomText) {
+        window.removeEventListener("scroll", markDomTextDirty);
+        window.removeEventListener("resize", markDomTextDirty);
+        contentRoot?.removeEventListener("transitionend", markDomTextDirty);
+        contentRoot?.removeEventListener("animationend", markDomTextDirty);
+        contentRoot?.removeEventListener("load", markDomTextDirty, true);
+        document.fonts?.removeEventListener("loadingdone", markDomTextDirty);
+      }
+      if (bgTexture && gl) gl.deleteTexture(bgTexture as WebGLTexture);
+      if (bgTexture && backend === "webgpu") {
+        (bgTexture as GPUTexture).destroy();
+      }
       renderer?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blurRadius, borderRadius, maxDpr, pad, morphFromCircle, circleSize]);
+  }, [
+    backend,
+    blurRadius,
+    borderRadius,
+    maxDpr,
+    pad,
+    morphFromCircle,
+    circleSize,
+    captureDomText,
+    opticalHighlight,
+    shaderHalo,
+  ]);
 
   const style: StudioGlassStyle = {
     ...styleProp,
@@ -623,11 +828,22 @@ export default function StudioLiquidGlass({
     <div
       ref={containerRef}
       className={`studio-liquid-glass ${styles.surface}${ready ? ` ${styles.ready}` : ""}${className ? ` ${className}` : ""}`}
-      data-liquid-glass-renderer={ready ? "studio-webgl2" : "css"}
+      data-liquid-glass-renderer={
+        ready
+          ? backend === "webgpu"
+            ? "studio-webgpu"
+            : "studio-webgl2"
+          : "css"
+      }
       data-morphing="false"
       style={style}
     >
-      <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
+      <canvas
+        key={backend}
+        ref={canvasRef}
+        className={styles.canvas}
+        aria-hidden="true"
+      />
       <div className={`studio-liquid-glass__content ${styles.content}`}>
         {children}
       </div>

@@ -27,6 +27,7 @@
   --viewport-frame-radius: 38px;
   --viewport-frame-width: 10px;
   --nav-shell-inline-inset: clamp(7rem, 10vw, 12rem);
+  --nav-shell-block-inset: 8px;
   --nav-shell-height: 5.25rem;
   --nav-shell-bottom-radius: var(--viewport-frame-radius);
   --nav-shell-junction-radius: var(--viewport-frame-radius);
@@ -155,10 +156,16 @@ body {
   background: transparent !important;
   border: 0;
   box-shadow: none;
-  /* Grow the real control box (not a CSS-scaled padded canvas ghost). */
+  opacity: var(--model-trigger-glass-opacity, 1);
+  transform: scale(var(--model-trigger-scale, 1));
+  transform-origin: center;
   transition:
-    width 90ms cubic-bezier(0.22, 1.15, 0.36, 1),
-    height 90ms cubic-bezier(0.22, 1.15, 0.36, 1);
+    transform 90ms cubic-bezier(0.22, 1.15, 0.36, 1),
+    opacity 0ms linear;
+}
+
+.model-adjustment-shell.is-open .model-adjustment-trigger-glass {
+  pointer-events: none;
 }
 
 .model-adjustment-shell.is-pressed .model-adjustment-trigger-glass {
@@ -301,28 +308,6 @@ body {
 .model-adjustment-panel button {
   color: inherit;
   font: inherit;
-}
-
-.model-adjustment-panel__close {
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  padding: 0 0 0.12rem;
-  color: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  border: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 8%, transparent);
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    transform 160ms ease;
-}
-
-.model-adjustment-panel__close:hover {
-  background: color-mix(in srgb, var(--color-text) 14%, transparent);
-  transform: rotate(4deg);
 }
 
 .model-adjustment-panel__body {
@@ -472,13 +457,13 @@ main[data-model-interaction="rotate"] [data-model-controls] {
 }
 
 .site-nav-shell {
-  top: 0;
+  top: var(--nav-shell-block-inset);
   left: var(--nav-shell-inline-inset);
   right: var(--nav-shell-inline-inset);
   height: var(--nav-shell-height);
   overflow: hidden;
   isolation: isolate;
-  border-radius: 0 0 var(--viewport-frame-radius) var(--viewport-frame-radius);
+  border-radius: calc(var(--nav-shell-height) / 2);
 }
 
 .site-nav-content {

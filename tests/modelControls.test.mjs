@@ -127,6 +127,25 @@ test("switches between browse and rotate mouse modes", async () => {
   );
 });
 
+test("only closes from outside in browse mode and resets rotation on exit", async () => {
+  const controls = await import(moduleUrl.href);
+
+  assert.equal(controls.shouldCloseModelPanelFromOutside("browse"), true);
+  assert.equal(controls.shouldCloseModelPanelFromOutside("rotate"), false);
+  assert.equal(
+    controls.getModelInteractionModeAfterPanelClose("rotate"),
+    "browse",
+  );
+  assert.equal(
+    controls.getModelInteractionModeAfterPanelClose("browse"),
+    "browse",
+  );
+
+  const source = readFileSync(modelPanelUrl, "utf8");
+  assert.doesNotMatch(source, /model-adjustment-panel__close/);
+  assert.doesNotMatch(source, /aria-label="关闭模型调整"/);
+});
+
 test("keeps the adjustment dialog closed until the trigger is used", async () => {
   const controls = await import(moduleUrl.href);
 
@@ -135,17 +154,17 @@ test("keeps the adjustment dialog closed until the trigger is used", async () =>
   assert.equal(controls.toggleModelPanel(true), false);
 });
 
-test("uses a 0.25s open/close with matching reverse timing", async () => {
+test("uses a faster two-phase open/close with matching reverse timing", async () => {
   const controls = await import(moduleUrl.href);
 
-  assert.equal(controls.MODEL_PANEL_MORPH_DURATION_MS, 250);
-  assert.equal(controls.MODEL_PANEL_PHASE1_MS, 50);
-  assert.equal(controls.MODEL_PANEL_PHASE2_MS, 200);
+  assert.equal(controls.MODEL_PANEL_MORPH_DURATION_MS, 210);
+  assert.equal(controls.MODEL_PANEL_PHASE1_MS, 45);
+  assert.equal(controls.MODEL_PANEL_PHASE2_MS, 165);
   assert.equal(
     controls.MODEL_PANEL_CLOSE_DURATION_MS,
     controls.MODEL_PANEL_OPEN_DURATION_MS,
   );
-  assert.equal(controls.MODEL_PANEL_PHASE1_END, 50 / 250);
+  assert.equal(controls.MODEL_PANEL_PHASE1_END, 45 / 210);
 
   assert.equal(controls.getModelPanelTimedProgress(0.25, true), 0.25);
   assert.equal(controls.getModelPanelTimedProgress(0.25, false), 0.75);
@@ -205,7 +224,7 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   assert.equal(closed.morphCanvasOpacity, 0);
   assert.equal(closed.triggerGlassOpacity, 1);
 
-  // Phase 1: circle radius equals distance from center to button center.
+  // Phase 1: the button flies out while retaining its exact circular size.
   const detach = controls.getModelPanelGlassShape({
     progress: 0.2,
     panelWidth: 320,
@@ -216,13 +235,17 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   });
   assert.equal(detach.phase, 1);
   assert.equal(detach.shapeWidth, detach.shapeHeight);
-  assert.equal(detach.shapeRadius, detach.shapeWidth / 2);
+  assert.equal(detach.shapeWidth, circleSize);
+  assert.equal(detach.shapeHeight, circleSize);
+  assert.equal(detach.shapeRadius, buttonR);
+  assert.equal(detach.showShape1, false);
+  assert.equal(detach.shape1Amount, 0);
+  assert.ok(detach.triggerGlassOpacity < 0.05);
   const detachDist = Math.hypot(
     detach.centerX - detach.shape1X,
     detach.centerY - detach.shape1Y,
   );
-  assert.ok(Math.abs(detach.shapeRadius - Math.max(buttonR, detachDist)) < 1e-6);
-  assert.ok(detach.shapeRadius > buttonR);
+  assert.ok(detachDist > 0);
 
   // Still phase 1 near the 0.05s boundary (progress = PHASE1_END).
   const phase1End = controls.getModelPanelGlassShape({
@@ -235,6 +258,8 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   });
   assert.equal(phase1End.phase, 1);
   assert.equal(phase1End.shapeWidth, phase1End.shapeHeight);
+  assert.equal(phase1End.centerX, 160);
+  assert.equal(phase1End.centerY, 200);
 
   // Phase 2: rounded-rect morph + continued center travel.
   const mid = controls.getModelPanelGlassShape({
@@ -249,6 +274,31 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   assert.ok(mid.shapeWidth >= phase1End.shapeWidth - 1e-6);
   assert.ok(mid.shapeHeight >= phase1End.shapeHeight - 1e-6);
   assert.equal(mid.morphCanvasOpacity, 1);
+
+  const bounce = controls.getModelPanelGlassShape({
+    progress:
+      controls.MODEL_PANEL_PHASE1_END +
+      (1 - controls.MODEL_PANEL_PHASE1_END) * 0.75,
+    panelWidth: 320,
+    panelHeight: 400,
+    borderRadius,
+    circleSize,
+    gap: 14,
+  });
+  assert.ok(bounce.shapeWidth > 320, "panel should overshoot before settling");
+  assert.ok(bounce.shapeWidth <= 320 * 1.08 + 1e-6);
+
+  const settleBack = controls.getModelPanelGlassShape({
+    progress:
+      controls.MODEL_PANEL_PHASE1_END +
+      (1 - controls.MODEL_PANEL_PHASE1_END) * 0.9,
+    panelWidth: 320,
+    panelHeight: 400,
+    borderRadius,
+    circleSize,
+    gap: 14,
+  });
+  assert.ok(settleBack.shapeWidth < 320, "panel should recoil before settling");
 
   // Center decelerates within each segment (kinematic ease-out).
   assert.ok(controls.kinematicEaseOut(0.25) > 0.4);
@@ -269,6 +319,18 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   assert.equal(open.centerY, 200);
   assert.equal(open.contentOpacity, 1);
   assert.equal(open.showShape1, false);
+  assert.equal(open.triggerGlassOpacity, 0);
+
+  const closingButtonBounce = controls.getModelPanelGlassShape({
+    progress: controls.MODEL_PANEL_PHASE1_END * 0.15,
+    panelWidth: 320,
+    panelHeight: 400,
+    borderRadius,
+    circleSize,
+    gap: 14,
+    opening: false,
+  });
+  assert.ok(closingButtonBounce.shapeWidth > circleSize);
 
   // Close is the identical mapping at the same progress.
   assert.deepEqual(
@@ -284,13 +346,14 @@ test("morphs with circular detach then circle-to-rect phases", async () => {
   );
 });
 
-test("scales the trigger up while pressed and recovers as the panel detaches", async () => {
+test("shrinks the trigger in place while pressed", async () => {
   const controls = await import(moduleUrl.href);
 
   assert.equal(
     controls.getModelPanelTriggerScale({ pressed: true, openProgress: 0 }),
     controls.MODEL_PANEL_PRESS_SCALE,
   );
+  assert.ok(controls.MODEL_PANEL_PRESS_SCALE < 1);
   assert.equal(
     controls.getModelPanelTriggerScale({ pressed: false, openProgress: 0 }),
     1,
@@ -317,6 +380,7 @@ test("uses timed morph progress instead of a bouncing spring", async () => {
 
 test("uses circle-to-rect morph props on the model dialog glass", () => {
   const source = readFileSync(modelPanelUrl, "utf8");
+  const globalStyles = readFileSync(globalStylesUrl, "utf8");
   assert.match(source, /morphFromCircle/);
   assert.match(source, /expanded=\{open\}/);
   assert.match(source, /MODEL_PANEL_CORNER_RADIUS/);
@@ -324,6 +388,22 @@ test("uses circle-to-rect morph props on the model dialog glass", () => {
   assert.match(source, /model-adjustment-trigger-glass/);
   assert.match(source, /onPointerDown/);
   assert.match(source, /onPointerUp/);
+  assert.match(
+    source,
+    /const triggerSize = `\$\{MODEL_PANEL_TRIGGER_SIZE\}px`/,
+  );
+  assert.match(
+    globalStyles,
+    /\.studio-liquid-glass\.model-adjustment-trigger-glass\s*\{[\s\S]*opacity:\s*var\(--model-trigger-glass-opacity/,
+  );
+  assert.match(
+    globalStyles,
+    /\.model-adjustment-shell\.is-open \.model-adjustment-trigger-glass[\s\S]*pointer-events:\s*none/,
+  );
+  assert.match(
+    globalStyles,
+    /transform:\s*scale\(var\(--model-trigger-scale, 1\)\)/,
+  );
 });
 
 test("hides the site content while model adjustment mode is open", () => {

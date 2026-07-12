@@ -45,16 +45,28 @@ export function toggleModelPanel(open: boolean) {
   return !open;
 }
 
+export function shouldCloseModelPanelFromOutside(
+  mode: ModelInteractionMode,
+) {
+  return mode === "browse";
+}
+
+export function getModelInteractionModeAfterPanelClose(
+  _mode: ModelInteractionMode,
+): ModelInteractionMode {
+  return "browse";
+}
+
 export const MODEL_PANEL_TRIGGER_SIZE = 72;
 /** Panel corner radius matches the circular button radius. */
 export const MODEL_PANEL_CORNER_RADIUS = MODEL_PANEL_TRIGGER_SIZE / 2;
 export const MODEL_PANEL_GAP = 14;
-export const MODEL_PANEL_PRESS_SCALE = 1.22;
+export const MODEL_PANEL_PRESS_SCALE = 0.88;
 
 /** Total open/close duration. Phase 1 = circle detach, phase 2 = circle→rect. */
-export const MODEL_PANEL_MORPH_DURATION_MS = 250;
-export const MODEL_PANEL_PHASE1_MS = 50;
-export const MODEL_PANEL_PHASE2_MS = 200;
+export const MODEL_PANEL_MORPH_DURATION_MS = 210;
+export const MODEL_PANEL_PHASE1_MS = 45;
+export const MODEL_PANEL_PHASE2_MS = 165;
 export const MODEL_PANEL_OPEN_DURATION_MS = MODEL_PANEL_MORPH_DURATION_MS;
 export const MODEL_PANEL_CLOSE_DURATION_MS = MODEL_PANEL_MORPH_DURATION_MS;
 export const MODEL_PANEL_PHASE1_END =
@@ -90,6 +102,23 @@ export function kinematicEaseOut(u: number) {
   return t * (2 - t);
 }
 
+export function boundedBackEaseOut(u: number) {
+  const t = Math.min(1, Math.max(0, u));
+  if (t < 0.72) return smoothstep(0, 0.72, t) * 1.08;
+  if (t < 0.9) {
+    return 1.08 + (0.97 - 1.08) * smoothstep(0.72, 0.9, t);
+  }
+  return 0.97 + (1 - 0.97) * smoothstep(0.9, 1, t);
+}
+
+export function getClosingButtonBounceScale(u: number) {
+  const t = Math.min(1, Math.max(0, u));
+  if (t >= 0.55) return 1;
+  if (t >= 0.28) return 0.88 + 0.12 * smoothstep(0.28, 0.55, t);
+  if (t >= 0.1) return 1.1 + (0.88 - 1.1) * smoothstep(0.1, 0.28, t);
+  return 1 + 0.1 * smoothstep(0, 0.1, t);
+}
+
 export function getModelPanelTriggerScale({
   pressed,
 }: {
@@ -106,6 +135,7 @@ export function getModelPanelGlassShape({
   borderRadius,
   circleSize = MODEL_PANEL_TRIGGER_SIZE,
   gap = MODEL_PANEL_GAP,
+  opening = true,
 }: {
   progress: number;
   panelWidth: number;
@@ -113,6 +143,7 @@ export function getModelPanelGlassShape({
   borderRadius: number;
   circleSize?: number;
   gap?: number;
+  opening?: boolean;
 }) {
   // Pure function of progress — close is open run backwards.
   const p = Math.min(1, Math.max(0, progress));
@@ -131,21 +162,17 @@ export function getModelPanelGlassShape({
   const dirX = dx / fullDist;
   const dirY = dy / fullDist;
 
-  // Phase-1 circle must fit the panel, so detach distance is capped.
-  const maxDetachR = Math.min(panelWidth, panelHeight) * 0.5;
-  const phase1Dist = Math.min(maxDetachR, fullDist * 0.5);
+  // Fly the complete distance to the future panel center before deforming.
+  const phase1Dist = fullDist;
 
   const samplePhase1 = (u: number) => {
     const detach = kinematicEaseOut(u);
     const dist = phase1Dist * detach;
     const x = buttonX + dirX * dist;
     const y = buttonY + dirY * dist;
-    // Radius matches distance to the button center (越远越大).
-    const radius = Math.max(buttonR, dist);
     return {
       centerX: x,
       centerY: y,
-      radius,
       detach,
     };
   };
@@ -153,7 +180,7 @@ export function getModelPanelGlassShape({
   const phase1EndState = samplePhase1(1);
   const c1X = phase1EndState.centerX;
   const c1Y = phase1EndState.centerY;
-  const r1 = phase1EndState.radius;
+  const r1 = buttonR;
 
   let centerX: number;
   let centerY: number;
@@ -165,25 +192,25 @@ export function getModelPanelGlassShape({
   let phase: 1 | 2;
 
   if (p <= phase1End) {
-    // 0–0.2s: circular detach. Radius = distance to button center.
+    // The button flies out first without changing shape or size.
     phase = 1;
     const u = phase1End <= 0 ? 1 : p / phase1End;
     const sample = samplePhase1(u);
     centerX = sample.centerX;
     centerY = sample.centerY;
-    shapeWidth = sample.radius * 2;
-    shapeHeight = sample.radius * 2;
-    shapeRadius = sample.radius;
+    const closeBounceScale = opening ? 1 : getClosingButtonBounceScale(u);
+    shapeWidth = size * closeBounceScale;
+    shapeHeight = size * closeBounceScale;
+    shapeRadius = buttonR * closeBounceScale;
     travelT = sample.detach * (phase1Dist / fullDist);
-    growT =
-      (sample.radius - buttonR) / Math.max(1e-6, maxDetachR - buttonR);
+    growT = 0;
   } else {
     // 0.2–0.5s: circle → rounded rect, center continues C1 → panel center.
     phase = 2;
     const v = (p - phase1End) / Math.max(1e-6, 1 - phase1End);
-    const move = kinematicEaseOut(v);
-    centerX = c1X + (endX - c1X) * move;
-    centerY = c1Y + (endY - c1Y) * move;
+    const morph = boundedBackEaseOut(v);
+    centerX = endX;
+    centerY = endY;
 
     const targetRadius = Math.min(
       borderRadius,
@@ -191,35 +218,36 @@ export function getModelPanelGlassShape({
       panelHeight * 0.5,
     );
     // r1 <= maxDetachR = min(panel)/2, so width/height only grow toward the panel.
-    shapeWidth = r1 * 2 + (panelWidth - r1 * 2) * v;
-    shapeHeight = r1 * 2 + (panelHeight - r1 * 2) * v;
-    shapeRadius = r1 + (targetRadius - r1) * v;
-    travelT =
-      phase1Dist / fullDist + (1 - phase1Dist / fullDist) * move;
+    shapeWidth = r1 * 2 + (panelWidth - r1 * 2) * morph;
+    shapeHeight = r1 * 2 + (panelHeight - r1 * 2) * morph;
+    shapeRadius = r1 + (targetRadius - r1) * morph;
+    travelT = 1;
     growT = 1;
 
     const halfW = shapeWidth * 0.5;
     const halfH = shapeHeight * 0.5;
-    centerX = Math.min(panelWidth - halfW, Math.max(halfW, centerX));
+    centerX =
+      shapeWidth > panelWidth
+        ? endX
+        : Math.min(panelWidth - halfW, Math.max(halfW, centerX));
     const maxCenterY = panelHeight + gap + size - halfH;
-    centerY = Math.min(maxCenterY, Math.max(halfH, centerY));
+    centerY =
+      shapeHeight > panelHeight
+        ? endY
+        : Math.min(maxCenterY, Math.max(halfH, centerY));
   }
 
-  // Light sticky only during circular detach (radius already tracks the button).
-  const shape1Amount =
-    phase === 1
-      ? smoothstep(0.02, 0.15, p / phase1End) * (1 - smoothstep(0.75, 1, p / phase1End))
-      : 0;
+  // The flying morph is the button; never draw a second circle at the origin.
+  const shape1Amount = 0;
   const shape1Radius = buttonR * Math.max(0.2, 1 - growT);
   const showShape1 = shape1Amount > 0.05;
   const mergeRate = 0.12 * shape1Amount;
 
-  const closeHandoff = smoothstep(0.0, 0.12, p);
-  const openHandoff = smoothstep(0.88, 0.98, p);
-  const morphCanvasOpacity = closeHandoff;
-  const triggerGlassOpacity = 1 - closeHandoff + closeHandoff * openHandoff;
+  // Hard handoff at the shared origin: exactly one representation is visible.
+  const morphCanvasOpacity = p > 0.0005 ? 1 : 0;
+  const triggerGlassOpacity = p > 0.0005 ? 0 : 1;
   const contentOpacity = smoothstep(0.45, 0.9, p);
-  const unifiedMorph = closeHandoff > 0.08 && openHandoff < 0.92;
+  const unifiedMorph = p > 0.0005 && p < 0.98;
 
   return {
     shapeWidth,

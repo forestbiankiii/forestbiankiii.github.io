@@ -60,6 +60,7 @@ export default function GlassButton({
       height={icon ? "2.75rem" : "auto"}
       borderRadius={999}
       capturePad={48}
+      shaderHalo={false}
       className={`glass-button-surface ${
         icon ? "glass-button-surface--icon" : ""
       } ${surfaceClassName}`.trim()}

@@ -3,7 +3,7 @@ export const LIQUID_GLASS_STUDIO_CONFIG = {
   version: "1.0.0",
   timestamp: "2026-07-11T05:07:03.871Z",
   exportFile: "liquid-glass-2026-07-11T05-07-03.json",
-  renderer: "webgl",
+  renderer: "webgpu",
   language: "zh-CN",
   refThickness: 20,
   refFactor: 1.4,

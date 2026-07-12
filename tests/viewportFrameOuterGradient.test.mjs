@@ -6,21 +6,56 @@ const source = readFileSync(
   new URL("../components/ViewportFrame.tsx", import.meta.url),
   "utf8",
 );
+const globalStyles = readFileSync(
+  new URL("../app/globals.css", import.meta.url),
+  "utf8",
+);
 
-test("matches the deployed gray outer contour", () => {
+test("keeps gray contours only for the navigation and footer", () => {
   assert.match(source, /viewport-frame-outer-gradient/);
   assert.match(source, /renderOuterGradientPaths/);
   assert.match(source, /StudioLiquidGlass/);
-  assert.doesNotMatch(source, /buildConnectedDisplacementMap/);
-  assert.doesNotMatch(source, /import GlassSurface/);
+  assert.doesNotMatch(source, /OuterGradientRole = "frame"/);
+  assert.doesNotMatch(source, /viewport-frame-gradient-frame-path/);
 });
 
-test("renders the frame as one seamless liquid-glass surface", () => {
-  assert.match(source, /className="viewport-frame-glass"/);
-  assert.match(source, /buildConnectedFrameMask\(geometry\)/);
+test("renders only two minimal WebGL windows for navigation and footer", () => {
+  assert.equal(source.match(/<StudioLiquidGlass/g)?.length, 2);
+  assert.match(source, /viewport-frame-glass--nav/);
+  assert.match(source, /viewport-frame-glass--footer/);
+  assert.match(source, /navWidth: navRect\.width/);
+  assert.match(source, /footerHeight: footerRect\.height/);
+  assert.match(source, /height=\{geometry\.navHeight\}/);
+  assert.match(source, /height=\{geometry\.footerHeight \+ geometry\.radius\}/);
   assert.match(source, /maxDpr=\{1\}/);
-  assert.doesNotMatch(source, /targetFps/);
-  assert.doesNotMatch(source, /buildGlassWindows/);
-  assert.doesNotMatch(source, /viewport-frame-glass--/);
-  assert.doesNotMatch(source, /glassWindows\.map/);
+  assert.match(source, /capturePad=\{40\}/);
+  assert.doesNotMatch(source, /buildConnectedFrameMask/);
+  assert.doesNotMatch(source, /frameInnerPath/);
+  assert.doesNotMatch(source, /pathData/);
+});
+
+test("uses one rectangle with two semicircular ends for the navigation", () => {
+  assert.match(source, /const navRadius = navHeight \/ 2/);
+  assert.match(source, /height=\{geometry\.navHeight\}/);
+  assert.match(source, /borderRadius=\{geometry\.navRadius\}/);
+  assert.match(source, /navTop:\s*readCssPixelValue/);
+  assert.match(source, /navGlass\.style\.top = `\$\{geometry\.navTop\}px`/);
+  assert.match(
+    globalStyles,
+    /\.site-nav-shell\s*\{[\s\S]*?border-radius:\s*calc\(var\(--nav-shell-height\)\s*\/\s*2\)/,
+  );
+  assert.doesNotMatch(source, /height=\{geometry\.navHeight \+ geometry\.radius\}/);
+});
+
+test("moves the complete navigation glass stack down by eight pixels", () => {
+  assert.match(globalStyles, /--nav-shell-block-inset:\s*8px/);
+  assert.match(
+    globalStyles,
+    /\.site-nav-shell\s*\{[\s\S]*?top:\s*var\(--nav-shell-block-inset\)/,
+  );
+  assert.match(
+    source,
+    /getPropertyValue\("--nav-shell-block-inset"\)/,
+  );
+  assert.match(source, /top:\s*`\$\{geometry\.navTop\}px`/);
 });

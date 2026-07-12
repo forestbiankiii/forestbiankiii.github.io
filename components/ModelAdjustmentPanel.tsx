@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import StudioLiquidGlass from "./StudioLiquidGlass";
 import {
   DEFAULT_MODEL_PANEL_OPEN,
+  getModelInteractionModeAfterPanelClose,
   getModelPanelPresentation,
   getModelPanelTriggerScale,
+  shouldCloseModelPanelFromOutside,
   MODEL_CONTROL_RANGES,
   MODEL_PANEL_CORNER_RADIUS,
   MODEL_PANEL_TRIGGER_SIZE,
@@ -48,6 +50,15 @@ export default function ModelAdjustmentPanel({
   const isRotateMode = controls.interactionMode === "rotate";
   const panelPresentation = getModelPanelPresentation(open);
 
+  const closePanel = useCallback(() => {
+    const nextMode = getModelInteractionModeAfterPanelClose(
+      controls.interactionMode,
+    );
+    if (nextMode !== controls.interactionMode) onToggleInteractionMode();
+    setPressed(false);
+    setOpen(false);
+  }, [controls.interactionMode, onToggleInteractionMode]);
+
   const syncTriggerScale = (nextPressed = pressedRef.current) => {
     const scale = getModelPanelTriggerScale({
       pressed: nextPressed,
@@ -74,13 +85,13 @@ export default function ModelAdjustmentPanel({
       const shell = shellRef.current;
       if (!shell) return;
       if (shell.contains(event.target as Node)) return;
-      setPressed(false);
-      setOpen(false);
+      if (!shouldCloseModelPanelFromOutside(controls.interactionMode)) return;
+      closePanel();
     };
 
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  }, [closePanel, controls.interactionMode, open]);
 
   const releasePress = (shouldOpen: boolean) => {
     if (!pressedRef.current) return;
@@ -92,7 +103,7 @@ export default function ModelAdjustmentPanel({
     }
   };
 
-  const triggerSize = `calc(${MODEL_PANEL_TRIGGER_SIZE}px * var(--model-trigger-scale, 1))`;
+  const triggerSize = `${MODEL_PANEL_TRIGGER_SIZE}px`;
 
   return (
     <div
@@ -125,14 +136,6 @@ export default function ModelAdjustmentPanel({
               <p className="model-adjustment-panel__eyebrow">3D MODEL</p>
               <h2 id="model-adjustment-title">调整模型</h2>
             </div>
-            <button
-              type="button"
-              className="model-adjustment-panel__close"
-              aria-label="关闭模型调整"
-              onClick={() => setOpen(false)}
-            >
-              ×
-            </button>
           </div>
 
           <div className="model-adjustment-panel__body">
@@ -197,6 +200,7 @@ export default function ModelAdjustmentPanel({
         borderRadius={999}
         capturePad={48}
         className="model-adjustment-trigger-glass"
+        shaderHalo={false}
       >
         <button
           type="button"
@@ -208,7 +212,7 @@ export default function ModelAdjustmentPanel({
           onPointerDown={(event) => {
             if (event.button !== 0) return;
             if (open) {
-              setOpen(false);
+              closePanel();
               return;
             }
             pressedRef.current = true;
@@ -221,7 +225,7 @@ export default function ModelAdjustmentPanel({
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
             if (open) {
-              setOpen(false);
+              closePanel();
               return;
             }
             pressedRef.current = true;
