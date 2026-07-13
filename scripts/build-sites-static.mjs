@@ -1,4 +1,12 @@
-import { cp, copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  cp,
+  copyFile,
+  mkdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { gzip } from "node:zlib";
@@ -25,9 +33,19 @@ const oversizedModel = resolve(
   "models",
   "2025_ferrari_296_gt3_verstappen_racing.glb",
 );
-const modelBytes = await readFile(oversizedModel);
-const compressedModel = await gzipAsync(modelBytes, { level: 9 });
-await writeFile(`${oversizedModel}.gz`, compressedModel);
-await rm(oversizedModel);
+const compressedModelPath = `${oversizedModel}.gz`;
+
+try {
+  const modelBytes = await readFile(oversizedModel);
+  const compressedModel = await gzipAsync(modelBytes, { level: 9 });
+  await writeFile(compressedModelPath, compressedModel);
+  await rm(oversizedModel);
+} catch (error) {
+  if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
+    throw error;
+  }
+
+  await access(compressedModelPath);
+}
 
 console.log("Prepared dist/ for Sites deployment.");

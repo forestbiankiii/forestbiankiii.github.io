@@ -57,6 +57,7 @@ export default function HuLabPage() {
 
           <div className="hu-lab-nav__links">
             <a href="#research">研究方向</a>
+            <Link href={withBasePath("/academic/hu-lab/members")}>成员</Link>
             <a href="#publications">论文</a>
             <a href="#contact">联系</a>
           </div>
@@ -144,6 +145,27 @@ export default function HuLabPage() {
                   </a>
                 </dd>
               </div>
+              <div>
+                <dt>邮箱</dt>
+                <dd>
+                  <a href="mailto:jmhu0101@usst.edu.cn">
+                    jmhu0101@usst.edu.cn ↗
+                  </a>
+                </dd>
+              </div>
+              <div>
+                <dt>学术主页</dt>
+                <dd>
+                  <a
+                    href="https://scholar.google.co.uk/scholar?as_allsubj=all&amp;as_sauthors=%22Jinming+Hu%22&amp;hl=en&amp;num=10"
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="在 Google Scholar 查找胡津铭老师的论文"
+                  >
+                    Google Scholar ↗
+                  </a>
+                </dd>
+              </div>
             </dl>
           </aside>
         </div>
@@ -156,17 +178,59 @@ export default function HuLabPage() {
             <span>篇上理工署名期刊论文</span>
           </div>
           <div>
-            <strong>05</strong>
-            <span>连续发表年份 · 2022—2026</span>
+            <strong>10</strong>
+            <span>在读学生</span>
           </div>
           <div>
             <strong>03</strong>
             <span>核心研究方向</span>
           </div>
           <div>
-            <strong>06/26</strong>
-            <span>最新论文 · 2026 年 6 月</span>
+            <strong>05</strong>
+            <span>连续发表年份 · 2022—2026</span>
           </div>
+        </div>
+      </section>
+
+      <section className="hu-lab-visual" aria-labelledby="hu-lab-visual-title">
+        <div className="hu-lab-shell hu-lab-visual__inner">
+          <div className="hu-lab-visual__heading">
+            <p>FROM OUR RESEARCH / 代表作</p>
+            <h2 id="hu-lab-visual-title">让超薄材料承载光学智能</h2>
+            <span>
+              通过亚 10 nm 二维钙钛矿纳米薄膜与飞秒激光图案化，实现波长复用全息显示和多任务光学神经网络。
+            </span>
+          </div>
+
+          <figure className="hu-lab-paper-figure">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={withBasePath("/hu-lab-representative-work.jpg")}
+              alt="胡津铭共同第一作者代表作：二维钙钛矿纳米薄膜中的波长复用全息与多任务光学神经网络"
+            />
+            <figcaption>
+              <span>REPRESENTATIVE WORK · CO-FIRST AUTHOR</span>
+              <p>
+                <strong>胡津铭</strong>、祝圣亭共同第一作者 · <em>Laser &amp; Photonics Reviews</em> 19(5), 2401458
+              </p>
+              <div>
+                <a
+                  href="https://doi.org/10.1002/lpor.202401458"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  DOI 10.1002/lpor.202401458 ↗
+                </a>
+                <a
+                  href="https://ipc.usst.edu.cn/2024/1216/c12794a331872/page.htm"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  图源：上海理工大学光子芯片研究院成果报道 ↗
+                </a>
+              </div>
+            </figcaption>
+          </figure>
         </div>
       </section>
 

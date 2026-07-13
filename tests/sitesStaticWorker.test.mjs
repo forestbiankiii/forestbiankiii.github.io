@@ -1,7 +1,56 @@
 import assert from "node:assert/strict";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import worker from "../workers/sites-static-worker.mjs";
+
+test("Sites build reuses an already-compressed model asset", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "sites-static-build-"));
+  const compressedModel = join(
+    fixture,
+    "out/models/2025_ferrari_296_gt3_verstappen_racing.glb.gz",
+  );
+  const workerEntry = join(fixture, "workers/sites-static-worker.mjs");
+  const buildScript = new URL(
+    "../scripts/build-sites-static.mjs",
+    import.meta.url,
+  );
+
+  try {
+    mkdirSync(join(fixture, "out/models"), { recursive: true });
+    mkdirSync(join(fixture, "workers"), { recursive: true });
+    writeFileSync(compressedModel, "already-compressed");
+    writeFileSync(workerEntry, "export default {};\n");
+
+    const result = spawnSync(process.execPath, [buildScript.pathname], {
+      cwd: fixture,
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      readFileSync(
+        join(
+          fixture,
+          "dist/client/models/2025_ferrari_296_gt3_verstappen_racing.glb.gz",
+        ),
+        "utf8",
+      ),
+      "already-compressed",
+    );
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 test("Sites static worker resolves exported Next routes to index.html", async () => {
   const requestedPaths = [];

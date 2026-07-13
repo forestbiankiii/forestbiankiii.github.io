@@ -91,3 +91,138 @@ test("keeps group metadata compatible with static export", () => {
   assert.match(layout, /metadataBase/);
   assert.match(layout, /NEXT_PUBLIC_SITE_URL/);
 });
+
+test("moves the complete roster to a dedicated members page", async () => {
+  const labPage = readFileSync(
+    new URL("../app/academic/hu-lab/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const membersPageUrl = new URL(
+    "../app/academic/hu-lab/members/page.tsx",
+    import.meta.url,
+  );
+  const membersLayoutUrl = new URL(
+    "../app/academic/hu-lab/members/layout.tsx",
+    import.meta.url,
+  );
+  const membersData = await import(
+    "../app/academic/hu-lab/members/members.ts"
+  );
+  const membersPage = readFileSync(membersPageUrl, "utf8");
+
+  assert.equal(existsSync(membersPageUrl), true);
+  assert.equal(existsSync(membersLayoutUrl), true);
+  assert.match(labPage, /withBasePath\("\/academic\/hu-lab\/members"\)/);
+  assert.doesNotMatch(labPage, /id="members"/);
+  assert.doesNotMatch(labPage, /const memberGroups/);
+
+  const students = membersData.HU_LAB_MEMBER_GROUPS.flatMap(
+    ({ members }) => members,
+  );
+
+  assert.equal(students.length, 10);
+  assert.equal(new Set(students.map(({ name }) => name)).size, 10);
+  assert.equal(
+    students.every(
+      ({ research, contact, bio }) =>
+        research === "" && contact === "" && bio === "",
+    ),
+    true,
+  );
+
+  const wangMaolin = students.find(({ name }) => name === "汪懋林");
+  const otherStudents = students.filter(({ name }) => name !== "汪懋林");
+
+  assert.equal(wangMaolin?.photo, "/profile.jpg");
+  assert.equal(otherStudents.every(({ photo }) => photo === null), true);
+  assert.equal(
+    existsSync(new URL("../public/profile.jpg", import.meta.url)),
+    true,
+  );
+  assert.match(membersPage, /withBasePath\(person\.photo\)/);
+
+  assert.match(membersPage, /HU_LAB_MEMBER_GROUPS/);
+  assert.match(membersPage, /照片待补充/);
+  assert.match(membersPage, /研究方向/);
+  assert.match(membersPage, /联系方式/);
+  assert.match(membersPage, /个人简介/);
+
+  for (const member of [
+    "胡润杰",
+    "丁正伟",
+    "汪懋林",
+    "林晗曦",
+    "胡海菁",
+    "李伟",
+    "章楠",
+    "胡亦琛",
+    "徐业翔",
+    "郑霖睿",
+  ]) {
+    assert.equal(students.some(({ name }) => name === member), true);
+  }
+});
+
+test("publishes the PI email and a verified Google Scholar discovery link", () => {
+  const page = readFileSync(
+    new URL("../app/academic/hu-lab/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(page, /mailto:jmhu0101@usst\.edu\.cn/);
+  assert.match(page, /jmhu0101@usst\.edu\.cn/);
+  assert.match(page, /scholar\.google\.(?:com|co\.uk)\/scholar/);
+  assert.match(page, /Google Scholar/);
+});
+
+test("features a representative paper led by Jinming Hu", () => {
+  const page = readFileSync(
+    new URL("../app/academic/hu-lab/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const paperFigure = new URL(
+    "../public/hu-lab-representative-work.jpg",
+    import.meta.url,
+  );
+
+  assert.equal(existsSync(paperFigure), true);
+  assert.match(page, /hu-lab-representative-work\.jpg/);
+  assert.match(page, /10\.1002\/lpor\.202401458/);
+  assert.match(page, /Laser &amp; Photonics Reviews/);
+  assert.match(page, /胡津铭.*共同第一作者/s);
+  assert.match(page, /上海理工大学光子芯片研究院成果报道/);
+  assert.doesNotMatch(page, /10\.1038\/s41467-024-51148-5/);
+});
+
+test("keeps supporting typography at a readable size", () => {
+  const css = readFileSync(
+    new URL("../app/academic/hu-lab/hu-lab.css", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(css, /--hu-text-xs:\s*12px/);
+  assert.match(css, /--hu-text-sm:\s*14px/);
+  assert.match(css, /--hu-text-base:\s*16px/);
+  assert.doesNotMatch(css, /font-size:\s*(?:[7-9]|10)px/);
+});
+
+test("shows the PI portrait at its full vertical composition", () => {
+  const css = readFileSync(
+    new URL("../app/academic/hu-lab/hu-lab.css", import.meta.url),
+    "utf8",
+  );
+  const portraitRule = css.match(
+    /\.hu-lab-profile__portrait\s*\{(?<rule>[^}]*)\}/,
+  )?.groups?.rule;
+
+  assert.ok(portraitRule);
+  assert.match(portraitRule, /width:\s*min\(72%,\s*249px\)/);
+  assert.match(portraitRule, /height:\s*auto/);
+  assert.match(portraitRule, /min-height:\s*0/);
+  assert.match(portraitRule, /aspect-ratio:\s*249\s*\/\s*363/);
+  assert.match(portraitRule, /object-fit:\s*contain/);
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(max-width:\s*760px\)[\s\S]*\.hu-lab-profile__portrait\s*\{[^}]*height:\s*390px/,
+  );
+});
