@@ -11,6 +11,7 @@ import type {
 } from "./RendererInterface";
 
 declare const GPUTextureUsage: {
+  COPY_SRC: number;
   COPY_DST: number;
   RENDER_ATTACHMENT: number;
   TEXTURE_BINDING: number;
@@ -290,6 +291,7 @@ export class GPUMultiPassRenderer implements IMultiPassRenderer {
     canvas: HTMLCanvasElement,
     configs: RenderPassConfig[],
     private readonly device: GPUDevice,
+    copySource = false,
   ) {
     const context = canvas.getContext("webgpu" as never) as
       | GPUCanvasContext
@@ -301,6 +303,9 @@ export class GPUMultiPassRenderer implements IMultiPassRenderer {
       device,
       format: this.canvasFormat,
       alphaMode: "premultiplied",
+      usage: copySource
+        ? GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
+        : GPUTextureUsage.RENDER_ATTACHMENT,
     });
 
     this.sampler = device.createSampler({

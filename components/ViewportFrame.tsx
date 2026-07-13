@@ -249,7 +249,7 @@ export default function ViewportFrame() {
         maxDpr={1}
         capturePad={40}
         captureDomText
-        highlightIntensity={0.2}
+        highlightIntensity={0}
         shaderHalo={false}
         className="viewport-frame-glass viewport-frame-glass--nav"
         style={{
@@ -264,7 +264,7 @@ export default function ViewportFrame() {
         blurRadius={0}
         maxDpr={1}
         capturePad={40}
-        highlightIntensity={0.2}
+        highlightIntensity={0}
         shaderHalo={false}
         className="viewport-frame-glass viewport-frame-glass--footer"
         style={{ left: 0, top: `${geometry.footerTop}px` }}

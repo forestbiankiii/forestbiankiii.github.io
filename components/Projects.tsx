@@ -6,15 +6,20 @@ import SpotlightCard from "@/components/SpotlightCard";
 
 export default function Projects() {
   return (
-    <section id="projects" className="relative z-10 py-32 px-6">
-      <div className="max-w-6xl mx-auto">
+    <section
+      id="projects"
+      data-model-scene="projects"
+      className="scene-section scene-section--model-left"
+    >
+      <div className="scene-section__layout">
+        <div className="scene-section__content">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="mb-16"
+          className="scene-section__header"
         >
           <p className="text-primary text-sm tracking-[0.3em] uppercase mb-3">
             Portfolio
@@ -26,7 +31,7 @@ export default function Projects() {
         </motion.div>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="scene-card-grid scene-card-grid--projects">
           {projects.map((project, index) => (
             <motion.article
               key={project.id}
@@ -37,7 +42,7 @@ export default function Projects() {
               className="h-full"
             >
               <SpotlightCard
-                className="group h-full rounded-[28px] p-6 transition-all duration-500"
+                className="scene-card group h-full transition-all duration-500"
               >
                 {/* Project number */}
                 <span className="absolute top-6 right-6 text-xs text-primary/30">
@@ -106,6 +111,7 @@ export default function Projects() {
               </SpotlightCard>
             </motion.article>
           ))}
+        </div>
         </div>
       </div>
     </section>

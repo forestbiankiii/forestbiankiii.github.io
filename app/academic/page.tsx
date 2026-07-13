@@ -463,6 +463,37 @@ export default function AcademicPage() {
         </div>
       </section>
 
+      {/* Research group entry */}
+      <section className="border-b border-neutral-200 bg-neutral-950 text-white">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <div className="grid gap-8 border border-white/20 bg-white/[0.04] p-7 md:grid-cols-[1fr_auto] md:items-end md:p-10">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-300">
+                Research Group · 课题组
+              </p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
+                胡津铭课题组
+              </h2>
+              <p className="mt-2 text-sm uppercase tracking-[0.16em] text-white/45">
+                Jinming Hu Research Group · USST
+              </p>
+              <p className="mt-6 max-w-3xl text-sm leading-7 text-white/65 md:text-base">
+                聚焦激光与材料相互作用、可重构光学神经网络，以及光学与光电子器件。
+                已完整收录胡津铭老师在上海理工大学署名发表的 15 篇正式期刊论文，
+                更新至 2026 年 7 月。
+              </p>
+            </div>
+            <Link
+              href={withBasePath("/academic/hu-lab")}
+              className="inline-flex min-h-12 items-center justify-between gap-10 border border-lime-300 bg-lime-300 px-5 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-950 transition-transform hover:-translate-y-1"
+            >
+              {lang === "zh" ? "进入课题组主页" : "Open group homepage"}
+              <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Education & Experience */}
       <section className="border-b border-neutral-200">
         <div className="mx-auto max-w-6xl px-6 py-12">

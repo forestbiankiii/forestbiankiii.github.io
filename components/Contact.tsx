@@ -51,15 +51,20 @@ const socialLinks = [
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative z-10 py-32 px-6">
-      <div className="max-w-4xl mx-auto">
+    <section
+      id="contact"
+      data-model-scene="contact"
+      className="scene-section scene-section--model-left"
+    >
+      <div className="scene-section__layout">
+        <div className="scene-section__content">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="scene-section__header"
         >
           <p className="text-primary text-sm tracking-[0.3em] uppercase mb-3">
             Get in Touch
@@ -67,11 +72,11 @@ export default function Contact() {
           <h2 className="text-3xl md:text-4xl font-bold text-text mb-4">
             Let&apos;s Connect
           </h2>
-          <p className="text-text-secondary max-w-lg mx-auto leading-relaxed">
+          <p className="max-w-lg leading-relaxed text-text-secondary">
             Interested in collaboration or just want to say hello? Feel free to
             reach out through any of the channels below.
           </p>
-          <div className="mt-6 w-16 h-px bg-primary/40 mx-auto" />
+          <div className="mt-6 h-px w-16 bg-primary/40" />
         </motion.div>
 
         {/* Social Links */}
@@ -80,7 +85,7 @@ export default function Contact() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          className="scene-card-grid scene-card-grid--contact"
         >
           {socialLinks.map((link, index) => (
             <motion.a
@@ -95,7 +100,7 @@ export default function Contact() {
               className="block h-full"
             >
               <SpotlightCard
-                className="group flex h-full flex-col items-center gap-3 rounded-[28px] p-6 transition-all duration-300"
+                className="scene-card scene-card--contact group h-full transition-all duration-300"
               >
                 <span className="text-primary/60 group-hover:text-primary transition-colors duration-300">
                   {link.icon}
@@ -114,7 +119,7 @@ export default function Contact() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="flex flex-col items-center gap-3 mt-12"
+          className="mt-10 flex flex-col items-start gap-3"
         >
           {emailAddresses.map((address) => (
             <GlassButton
@@ -126,6 +131,7 @@ export default function Contact() {
             </GlassButton>
           ))}
         </motion.div>
+        </div>
       </div>
     </section>
   );

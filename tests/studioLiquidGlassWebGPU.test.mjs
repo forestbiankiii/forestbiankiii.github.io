@@ -5,6 +5,7 @@ import { computeGaussianKernelByRadius } from "../components/liquid-glass-studio
 import {
   getCanvasFont,
   getLineBaseline,
+  toCanvasColor,
 } from "../components/liquid-glass-studio/domTextCapture.ts";
 
 const studioSource = readFileSync(
@@ -105,6 +106,49 @@ test("captures non-text DOM visuals into the navigation refraction texture", () 
   assert.match(studioSource, /paintDomLayer/);
 });
 
+test("keeps glass button canvases readable by the DOM capture layer", () => {
+  const gpuUtils = readFileSync(
+    new URL(
+      "../components/liquid-glass-studio/GPUUtils.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const glUtils = readFileSync(
+    new URL(
+      "../components/liquid-glass-studio/GLUtils.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(studioSource, /captureReadable\?: boolean/);
+  assert.match(gpuUtils, /COPY_SRC/);
+  assert.match(gpuUtils, /copySource/);
+  assert.match(glUtils, /preserveDrawingBuffer/);
+  assert.match(glassButtonSource, /captureReadable/);
+  assert.match(
+    studioSource,
+    /if \(captureReadable\)[\s\S]*?setBackend\("webgl"\)/,
+  );
+});
+
+test("repaints the computed glass button outline above its GPU canvas", () => {
+  assert.equal(
+    toCanvasColor("color(srgb 1 1 1 / 0.16)"),
+    "rgba(255, 255, 255, 0.16)",
+  );
+  const domCapture = readFileSync(
+    new URL(
+      "../components/liquid-glass-studio/domTextCapture.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(domCapture, /paintGlassButtonOutline/);
+  assert.match(domCapture, /matches\("\.glass-button-surface"\)/);
+});
+
 test("preserves each DOM text node's computed font size in the canvas proxy", () => {
   assert.equal(
     getCanvasFont({
@@ -153,7 +197,7 @@ test("keeps navigation GPU work bounded to its existing local capture", () => {
   assert.doesNotMatch(studioSource, /window\.innerHeight[\s\S]*createTexture/);
 });
 
-test("removes the rectangular shader halo and softens optical highlights", () => {
+test("disables viewport glass highlights and the rectangular shader halo", () => {
   assert.match(studioSource, /highlightIntensity\?: number/);
   assert.match(studioSource, /shaderHalo\?: boolean/);
   assert.match(
@@ -169,7 +213,7 @@ test("removes the rectangular shader halo and softens optical highlights", () =>
     /u_glareFactor:\s*uniforms\.glareFactor\s*\*\s*opticalHighlight/,
   );
   assert.equal(viewportSource.match(/shaderHalo=\{false\}/g)?.length, 2);
-  assert.equal(viewportSource.match(/highlightIntensity=\{0\.2\}/g)?.length, 2);
+  assert.equal(viewportSource.match(/highlightIntensity=\{0\}/g)?.length, 2);
 });
 
 test("disables the shader sampling halo around glass buttons", () => {
