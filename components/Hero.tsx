@@ -67,6 +67,12 @@ export default function Hero() {
               >
                 Academic Homepage
               </GlassButton>
+              <GlassButton
+                href={withBasePath("/academic/hu-lab")}
+                className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
+              >
+                Hu Lab 课题组
+              </GlassButton>
             </motion.div>
           </SpotlightCard>
         </div>

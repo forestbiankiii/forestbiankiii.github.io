@@ -53,6 +53,23 @@ test("links the personal academic profile to the group homepage", () => {
   assert.match(academic, /15 篇/);
 });
 
+test("surfaces the Hu Lab entry directly on the public homepage", () => {
+  const hero = readFileSync(
+    new URL("../components/Hero.tsx", import.meta.url),
+    "utf8",
+  );
+  const academicPreview = readFileSync(
+    new URL("../components/AcademicPreview.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(hero, /withBasePath\("\/academic\/hu-lab"\)/);
+  assert.match(hero, /Hu Lab 课题组/);
+  assert.match(academicPreview, /withBasePath\("\/academic\/hu-lab"\)/);
+  assert.match(academicPreview, /Research Group/);
+  assert.match(academicPreview, /课题组入口/);
+});
+
 test("renders the evidence boundary and full publication collection", () => {
   const pageUrl = new URL("../app/academic/hu-lab/page.tsx", import.meta.url);
 

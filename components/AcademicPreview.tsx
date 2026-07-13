@@ -16,6 +16,11 @@ const academicHighlights = [
     title: "Materials Science and Engineering",
     body: "Undergraduate at the University of Shanghai for Science and Technology, School of Intelligent Science and Technology.",
   },
+  {
+    label: "Research Group",
+    title: "Hu Lab / 胡津铭课题组",
+    body: "Direct entrance to the Jinming Hu Research Group homepage, including research axes, member directory, representative work, and publications.",
+  },
 ];
 
 export default function AcademicPreview() {
@@ -41,9 +46,8 @@ export default function AcademicPreview() {
             Research profile and academic materials.
           </h2>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-text-secondary md:text-base">
-            A compact overview of my academic direction. Open the full academic
-            homepage for publications, research interests, materials, and contact
-            information.
+            A compact overview of my academic direction and a direct entrance
+            to the Hu Lab research group materials.
           </p>
           <div className="mt-4 h-px w-16 bg-primary/40" />
         </motion.div>
@@ -80,13 +84,19 @@ export default function AcademicPreview() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-10"
+          className="mt-10 flex flex-col items-start gap-4 sm:flex-row"
         >
           <GlassButton
             href={withBasePath("/academic")}
             className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
           >
             Open Academic Homepage
+          </GlassButton>
+          <GlassButton
+            href={withBasePath("/academic/hu-lab")}
+            className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
+          >
+            Enter Hu Lab 课题组入口
           </GlassButton>
         </motion.div>
         </div>
