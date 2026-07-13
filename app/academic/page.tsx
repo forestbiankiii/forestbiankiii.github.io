@@ -1,10 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import GlassButton from "@/components/GlassButton";
 import { markIntroSeen } from "@/components/introVisit";
 import { withBasePath } from "@/components/sitePath";
+
+const AcademicLanyard = dynamic(
+  () => import("@/components/AcademicLanyard"),
+  { ssr: false },
+);
 
 type Lang = "en" | "zh";
 
@@ -22,6 +28,12 @@ type Dict = {
     eyebrow: string;
     title: string;
     body: string;
+  };
+  interactiveBadge: {
+    eyebrow: string;
+    title: string;
+    body: string;
+    hint: string;
   };
   profileLabels: {
     name: string;
@@ -92,6 +104,13 @@ const DICT: Record<Lang, Dict> = {
       title: "Nanophotonics, optical computing, and quantum materials.",
       body:
         "I am an undergraduate in Materials Science and Engineering at the University of Shanghai for Science and Technology, working on light–matter interaction at the nanoscale. This page collects my research interests, prior work, publications, and academic materials.",
+    },
+    interactiveBadge: {
+      eyebrow: "Interactive identity",
+      title: "A badge you can pick up.",
+      body:
+        "My portrait, academic affiliation, and verified contact channels are gathered into a physics-driven ID badge inspired by the React Bits Lanyard component.",
+      hint: "Drag the card to move it. Release it to watch the lanyard settle.",
     },
     profileLabels: {
       name: "Name",
@@ -211,6 +230,13 @@ const DICT: Record<Lang, Dict> = {
       title: "纳米光子学、光学计算与量子材料。",
       body:
         "我是上海理工大学材料科学与工程专业的本科生,从事纳米尺度下光与物质相互作用的研究。本页面汇集我的研究兴趣、过往工作、发表论文及学术资料。",
+    },
+    interactiveBadge: {
+      eyebrow: "互动身份牌",
+      title: "一张可以拿起来的学术胸牌。",
+      body:
+        "胸牌汇集了我的证件照、学术身份与经过核对的联系方式，并采用 React Bits Lanyard 的物理挂绳交互。",
+      hint: "拖动卡片即可移动，松手后挂绳会自然回落。",
     },
     profileLabels: {
       name: "姓名",
@@ -460,6 +486,32 @@ export default function AcademicPage() {
               </div>
             ))}
           </dl>
+        </div>
+      </section>
+
+      {/* Interactive academic badge */}
+      <section className="overflow-hidden border-b border-neutral-200 bg-[#f1f3eb]">
+        <div className="mx-auto grid max-w-6xl gap-2 px-6 py-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-center lg:gap-8 lg:py-0">
+          <div className="relative z-10 lg:py-20">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-neutral-500">
+              {t.interactiveBadge.eyebrow}
+            </p>
+            <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-950 md:text-5xl">
+              {t.interactiveBadge.title}
+            </h2>
+            <p className="mt-6 max-w-lg text-base leading-8 text-neutral-700">
+              {t.interactiveBadge.body}
+            </p>
+            <div className="mt-8 flex max-w-md items-start gap-4 border-t border-neutral-300 pt-5 text-sm leading-6 text-neutral-600">
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-xs font-semibold text-lime-300">
+                ↕
+              </span>
+              <p>{t.interactiveBadge.hint}</p>
+            </div>
+          </div>
+          <div className="-mx-6 min-w-0 lg:mx-0">
+            <AcademicLanyard lang={lang} />
+          </div>
         </div>
       </section>
 
