@@ -59,24 +59,21 @@ test("Sites static worker resolves exported Next routes to index.html", async ()
       async fetch(request) {
         const pathname = new URL(request.url).pathname;
         requestedPaths.push(pathname);
-        return pathname === "/academic/hu-lab/index.html"
-          ? new Response("lab", { status: 200 })
+        return pathname === "/academic/index.html"
+          ? new Response("academic", { status: 200 })
           : new Response("missing", { status: 404 });
       },
     },
   };
 
   const response = await worker.fetch(
-    new Request("https://example.com/academic/hu-lab/"),
+    new Request("https://example.com/academic/"),
     env,
   );
 
   assert.equal(response.status, 200);
-  assert.equal(await response.text(), "lab");
-  assert.deepEqual(requestedPaths, [
-    "/academic/hu-lab/",
-    "/academic/hu-lab/index.html",
-  ]);
+  assert.equal(await response.text(), "academic");
+  assert.deepEqual(requestedPaths, ["/academic/", "/academic/index.html"]);
 });
 
 test("Sites static worker serves the exported 404 page for unknown routes", async () => {
