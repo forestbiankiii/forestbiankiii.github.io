@@ -517,8 +517,12 @@ export class MultiPassRenderer {
   private passesArray: RenderPass[] = [];
   private globalUniforms: Record<string, any> = {};
 
-  constructor(canvas: HTMLCanvasElement, configs: RenderPassConfig[]) {
-    const gl = canvas.getContext("webgl2");
+  constructor(
+    canvas: HTMLCanvasElement,
+    configs: RenderPassConfig[],
+    preserveDrawingBuffer = false,
+  ) {
+    const gl = canvas.getContext("webgl2", { preserveDrawingBuffer });
     if (!gl) throw new Error("WebGL 2 not supported");
 
     // 检查浮点纹理扩展

@@ -406,6 +406,17 @@ test("uses circle-to-rect morph props on the model dialog glass", () => {
   );
 });
 
+test("keeps the model adjustment trigger off the forced readable WebGL path", () => {
+  const source = readFileSync(modelPanelUrl, "utf8");
+  const triggerSurface = source.match(
+    /<StudioLiquidGlass[\s\S]*?className="model-adjustment-trigger-glass"[\s\S]*?>/,
+  )?.[0];
+
+  assert.ok(triggerSurface);
+  assert.doesNotMatch(triggerSurface, /captureReadable/);
+  assert.match(triggerSurface, /shaderHalo=\{false\}/);
+});
+
 test("hides the site content while model adjustment mode is open", () => {
   const panelSource = readFileSync(modelPanelUrl, "utf8");
   const pageSource = readFileSync(homePageUrl, "utf8");

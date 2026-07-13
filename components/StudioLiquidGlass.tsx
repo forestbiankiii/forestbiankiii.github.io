@@ -69,6 +69,8 @@ interface StudioLiquidGlassProps {
   capturePad?: number;
   /** Paint intersecting page text into the sampled background texture. */
   captureDomText?: boolean;
+  /** Keeps the rendered canvas readable when another glass samples this one. */
+  captureReadable?: boolean;
   /** Multiplier for Fresnel and glare highlights without changing glass alpha. */
   highlightIntensity?: number;
   /** Enables the shader's wide SDF halo outside the glass shape. */
@@ -218,6 +220,7 @@ export default function StudioLiquidGlass({
   maxDpr = 2,
   capturePad = CAPTURE_PAD,
   captureDomText = false,
+  captureReadable = false,
   highlightIntensity = 1,
   shaderHalo = true,
   expanded = true,
@@ -296,6 +299,14 @@ export default function StudioLiquidGlass({
 
   useEffect(() => {
     let active = true;
+    if (captureReadable) {
+      gpuDeviceRef.current = null;
+      setReady(false);
+      setBackend("webgl");
+      return () => {
+        active = false;
+      };
+    }
     detectWebGPU().then((result) => {
       if (!active) return;
       gpuDeviceRef.current = result.supported ? result.device ?? null : null;
@@ -305,7 +316,7 @@ export default function StudioLiquidGlass({
     return () => {
       active = false;
     };
-  }, []);
+  }, [captureReadable]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -378,31 +389,38 @@ export default function StudioLiquidGlass({
             },
           ],
           gpuDevice,
+          captureReadable,
         );
       } else {
-        renderer = new MultiPassRenderer(canvas, [
-          {
-            name: "bgPass",
-            shader: { vertex: VertexShader, fragment: OVERLAY_BG_SHADER },
-          },
-          {
-            name: "vBlurPass",
-            shader: { vertex: VertexShader, fragment: FragmentBgVblurShader },
-            inputs: { u_prevPassTexture: "bgPass" },
-          },
-          {
-            name: "hBlurPass",
-            shader: { vertex: VertexShader, fragment: FragmentBgHblurShader },
-            inputs: { u_prevPassTexture: "vBlurPass" },
-          },
-          {
-            name: "mainPass",
-            shader: { vertex: VertexShader, fragment: FragmentMainShader },
-            inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
-            outputToScreen: true,
-          },
-        ]);
-        gl = canvas.getContext("webgl2");
+        renderer = new MultiPassRenderer(
+          canvas,
+          [
+            {
+              name: "bgPass",
+              shader: { vertex: VertexShader, fragment: OVERLAY_BG_SHADER },
+            },
+            {
+              name: "vBlurPass",
+              shader: { vertex: VertexShader, fragment: FragmentBgVblurShader },
+              inputs: { u_prevPassTexture: "bgPass" },
+            },
+            {
+              name: "hBlurPass",
+              shader: { vertex: VertexShader, fragment: FragmentBgHblurShader },
+              inputs: { u_prevPassTexture: "vBlurPass" },
+            },
+            {
+              name: "mainPass",
+              shader: { vertex: VertexShader, fragment: FragmentMainShader },
+              inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
+              outputToScreen: true,
+            },
+          ],
+          captureReadable,
+        );
+        gl = canvas.getContext("webgl2", {
+          preserveDrawingBuffer: captureReadable,
+        });
         if (!gl) throw new Error("WebGL2 unavailable");
         bgTexture = gl.createTexture();
         if (!bgTexture) throw new Error("Failed to create bg texture");
@@ -805,6 +823,7 @@ export default function StudioLiquidGlass({
     morphFromCircle,
     circleSize,
     captureDomText,
+    captureReadable,
     opticalHighlight,
     shaderHalo,
   ]);

@@ -24,7 +24,7 @@ export const MODEL_BACKGROUND_VIEWER_PROPS = {
   keyLightIntensity: 1.6,
   fillLightIntensity: 0.8,
   rimLightIntensity: 1.1,
-  environmentPreset: "studio",
+  environmentPreset: "local-studio",
   autoFrame: true,
   fadeIn: true,
   autoRotate: false,

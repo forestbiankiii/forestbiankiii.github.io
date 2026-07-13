@@ -81,6 +81,22 @@ interface PaintState {
 
 const svgImageCache = new WeakMap<SVGSVGElement, SvgCacheEntry>();
 
+export function toCanvasColor(value: string) {
+  const srgb = value.trim().match(
+    /^color\(srgb\s+(-?\d*\.?\d+)\s+(-?\d*\.?\d+)\s+(-?\d*\.?\d+)(?:\s*\/\s*(-?\d*\.?\d+))?\)$/i,
+  );
+  if (!srgb) return value;
+  const channel = (input: string) =>
+    Math.round(Math.max(0, Math.min(1, Number.parseFloat(input))) * 255);
+  const alpha = Math.max(
+    0,
+    Math.min(1, Number.parseFloat(srgb[4] ?? "1")),
+  );
+  return `rgba(${channel(srgb[1])}, ${channel(srgb[2])}, ${channel(
+    srgb[3],
+  )}, ${alpha})`;
+}
+
 function pixelValue(value: string) {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -123,7 +139,7 @@ function paintElementBox(
 
   if (style.backgroundColor !== "transparent") {
     beginRoundedRect(ctx, x, y, rect.width, rect.height, style);
-    ctx.fillStyle = style.backgroundColor;
+    ctx.fillStyle = toCanvasColor(style.backgroundColor);
     ctx.fill();
   }
 
@@ -144,9 +160,41 @@ function paintElementBox(
       borderWidth * 0.5,
     );
     ctx.lineWidth = borderWidth;
-    ctx.strokeStyle = style.borderTopColor;
+    ctx.strokeStyle = toCanvasColor(style.borderTopColor);
     ctx.stroke();
   }
+}
+
+function paintGlassButtonOutline(
+  ctx: CanvasRenderingContext2D,
+  rect: DOMRectReadOnly,
+  captureRect: DOMRectReadOnly,
+  style: CSSStyleDeclaration,
+) {
+  const x = rect.left - captureRect.left;
+  const y = rect.top - captureRect.top;
+  const borderWidth = Math.max(0.5, pixelValue(style.borderTopWidth));
+
+  beginRoundedRect(
+    ctx,
+    x,
+    y,
+    rect.width,
+    rect.height,
+    style,
+    borderWidth * 0.5,
+  );
+  ctx.lineWidth = borderWidth;
+  ctx.strokeStyle = toCanvasColor(style.borderTopColor);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.globalAlpha *= 0.28;
+  beginRoundedRect(ctx, x, y, rect.width, rect.height, style, 1);
+  ctx.lineWidth = 0.75;
+  ctx.strokeStyle = toCanvasColor(style.color);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function clipToElement(
@@ -337,7 +385,7 @@ function paintTextNode(
   const { ctx } = state;
   ctx.save();
   ctx.font = getCanvasFont(style);
-  ctx.fillStyle = style.color;
+  ctx.fillStyle = toCanvasColor(style.color);
   ctx.globalAlpha = opacity;
   const fontSize = Number.parseFloat(style.fontSize) || 10;
   const lineMetrics = ctx.measureText("Mg");
@@ -416,6 +464,22 @@ function paintElementTree(
     } else if (child instanceof Element) {
       paintElementTree(child, opacity, state, root);
     }
+  }
+
+  if (
+    hasBox &&
+    element instanceof HTMLElement &&
+    element.matches(".glass-button-surface")
+  ) {
+    state.ctx.save();
+    state.ctx.globalAlpha = opacity;
+    paintGlassButtonOutline(
+      state.ctx,
+      rect,
+      state.captureRect,
+      style,
+    );
+    state.ctx.restore();
   }
 }
 

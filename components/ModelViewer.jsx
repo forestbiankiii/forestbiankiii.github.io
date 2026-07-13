@@ -18,6 +18,7 @@ import {
   ContactShadows,
   Environment,
   Html,
+  Lightformer,
   OrbitControls,
   useGLTF,
   useProgress,
@@ -57,6 +58,44 @@ function Loader({ placeholderSrc }) {
         `${Math.round(progress)} %`
       )}
     </Html>
+  );
+}
+
+function LocalStudioEnvironment() {
+  return (
+    <Environment resolution={128} frames={1} background={false}>
+      <Lightformer
+        form="rect"
+        intensity={3.5}
+        color="#ffffff"
+        position={[0, 6, -8]}
+        scale={[12, 5, 1]}
+      />
+      <Lightformer
+        form="rect"
+        intensity={2.4}
+        color="#dbe7ff"
+        position={[-6, 2, -2]}
+        rotation={[0, Math.PI / 2, 0]}
+        scale={[8, 4, 1]}
+      />
+      <Lightformer
+        form="rect"
+        intensity={2}
+        color="#fff2df"
+        position={[6, 1, 1]}
+        rotation={[0, -Math.PI / 2, 0]}
+        scale={[7, 3, 1]}
+      />
+      <Lightformer
+        form="ring"
+        intensity={2.8}
+        color="#ffffff"
+        position={[0, 4, 6]}
+        rotation={[0, Math.PI, 0]}
+        scale={4}
+      />
+    </Environment>
   );
 }
 
@@ -562,7 +601,7 @@ export default function ModelViewer({
   keyLightIntensity = 1,
   fillLightIntensity = 0.5,
   rimLightIntensity = 0.8,
-  environmentPreset = "forest",
+  environmentPreset = "local-studio",
   autoFrame = false,
   placeholderSrc = undefined,
   showScreenshotButton = true,
@@ -669,9 +708,11 @@ export default function ModelViewer({
         }}
         style={{ touchAction: "pan-y pinch-zoom" }}
       >
-        {environmentPreset !== "none" && (
+        {environmentPreset === "local-studio" ? (
+          <LocalStudioEnvironment />
+        ) : environmentPreset !== "none" ? (
           <Environment preset={environmentPreset} background={false} />
-        )}
+        ) : null}
 
         <ambientLight intensity={ambientIntensity} />
         <directionalLight

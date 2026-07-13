@@ -32,7 +32,6 @@ import {
   toggleModelInteractionMode,
   type ModelNumericControl,
 } from "@/components/modelControls";
-
 type ThemeSweepDirection = "to-black" | "to-white";
 const themeSweepDuration = 1800;
 

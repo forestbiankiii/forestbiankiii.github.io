@@ -16,18 +16,28 @@ const academicHighlights = [
     title: "Materials Science and Engineering",
     body: "Undergraduate at the University of Shanghai for Science and Technology, School of Intelligent Science and Technology.",
   },
+  {
+    label: "Research Group",
+    title: "Hu Lab / 胡津铭课题组",
+    body: "Direct entrance to the Jinming Hu Research Group homepage, including research axes, member directory, representative work, and publications.",
+  },
 ];
 
 export default function AcademicPreview() {
   return (
-    <section id="academic" className="relative z-10 py-32 px-6">
-      <div className="mx-auto max-w-6xl">
+    <section
+      id="academic"
+      data-model-scene="academic"
+      className="scene-section scene-section--model-right"
+    >
+      <div className="scene-section__layout">
+        <div className="scene-section__content">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.6 }}
-          className="mb-16"
+          className="scene-section__header"
         >
           <p className="mb-3 text-sm uppercase tracking-[0.3em] text-primary">
             Academic
@@ -36,14 +46,13 @@ export default function AcademicPreview() {
             Research profile and academic materials.
           </h2>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-text-secondary md:text-base">
-            A compact overview of my academic direction. Open the full academic
-            homepage for publications, research interests, materials, and contact
-            information.
+            A compact overview of my academic direction and a direct entrance
+            to the Hu Lab research group materials.
           </p>
           <div className="mt-4 h-px w-16 bg-primary/40" />
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="scene-card-grid scene-card-grid--academic">
           {academicHighlights.map((item, index) => (
             <motion.div
               key={item.label}
@@ -51,9 +60,10 @@ export default function AcademicPreview() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="h-full"
             >
               <SpotlightCard
-                className="group h-full rounded-[28px] p-6 transition-all duration-500"
+                className="scene-card group h-full transition-all duration-500"
               >
                 <p className="mb-4 text-xs uppercase tracking-[0.25em] text-primary/70">
                   {item.label}
@@ -74,7 +84,7 @@ export default function AcademicPreview() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-10"
+          className="mt-10 flex flex-col items-start gap-4 sm:flex-row"
         >
           <GlassButton
             href={withBasePath("/academic")}
@@ -82,7 +92,14 @@ export default function AcademicPreview() {
           >
             Open Academic Homepage
           </GlassButton>
+          <GlassButton
+            href={withBasePath("/academic/hu-lab")}
+            className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
+          >
+            Enter Hu Lab 课题组入口
+          </GlassButton>
         </motion.div>
+        </div>
       </div>
     </section>
   );

@@ -136,6 +136,115 @@ body {
   will-change: opacity;
 }
 
+.scene-section {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  min-height: 100svh;
+  align-items: center;
+  padding: clamp(8rem, 12vh, 10rem) clamp(1.5rem, 5vw, 5rem);
+}
+
+.scene-section__layout {
+  display: grid;
+  width: min(100%, 80rem);
+  margin-inline: auto;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: clamp(1.5rem, 3vw, 3rem);
+}
+
+.scene-section__content {
+  min-width: 0;
+}
+
+.scene-section--model-right .scene-section__content {
+  grid-column: 1 / span 6;
+}
+
+.scene-section--model-left .scene-section__content {
+  grid-column: 7 / -1;
+}
+
+.scene-section__header {
+  margin-bottom: clamp(2rem, 5vh, 3.5rem);
+}
+
+.scene-card-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.scene-card-grid--projects,
+.scene-card-grid--academic,
+.scene-card-grid--contact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scene-card-grid > * {
+  min-width: 0;
+}
+
+.scene-card {
+  width: 100%;
+}
+
+.scene-card .card-spotlight__content {
+  height: 100%;
+  padding: 1.5rem;
+}
+
+.scene-card--hero {
+  text-align: left;
+}
+
+.scene-card--hero .card-spotlight__content {
+  padding: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.scene-card--contact .card-spotlight__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .scene-section--model-right .scene-section__content {
+    grid-column: 1 / span 7;
+  }
+
+  .scene-section--model-left .scene-section__content {
+    grid-column: 6 / -1;
+  }
+
+  .scene-card-grid--projects,
+  .scene-card-grid--academic {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .scene-section {
+    min-height: 100svh;
+    padding: 7.5rem 1.25rem 5rem;
+  }
+
+  .scene-section__layout {
+    display: block;
+  }
+
+  .scene-section--model-right .scene-section__content,
+  .scene-section--model-left .scene-section__content {
+    width: 100%;
+  }
+
+  .scene-card-grid--projects,
+  .scene-card-grid--academic,
+  .scene-card-grid--contact {
+    grid-template-columns: 1fr;
+  }
+}
+
 .is-model-adjustment-open .site-content-layer {
   opacity: 0;
   pointer-events: none;

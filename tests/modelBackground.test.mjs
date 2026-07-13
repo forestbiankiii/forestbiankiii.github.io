@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const moduleUrl = new URL(
@@ -44,6 +44,18 @@ test("defines the local Ferrari background contract", async () => {
     background.MODEL_BACKGROUND_VIEWER_PROPS.enableManualZoom,
     false,
   );
+  assert.equal(
+    background.MODEL_BACKGROUND_VIEWER_PROPS.environmentPreset,
+    "local-studio",
+  );
+
+  const viewerSource = readFileSync(
+    new URL("../components/ModelViewer.jsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(viewerSource, /Lightformer/);
+  assert.match(viewerSource, /function LocalStudioEnvironment/);
+  assert.match(viewerSource, /environmentPreset === "local-studio"/);
 });
 
 test("centers an off-origin model after normalizing its radius", async () => {
