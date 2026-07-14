@@ -19,6 +19,12 @@ import {
 } from "@react-three/rapier";
 import { MeshLineGeometry, MeshLineMaterial } from "meshline";
 import * as THREE from "three";
+import {
+  createLanyardRetractionState,
+  getLanyardRetractionKick,
+  isLanyardRetractionComplete,
+  stepLanyardRetraction,
+} from "@/components/lanyardRetraction";
 import { withBasePath } from "@/components/sitePath";
 import "./Lanyard.css";
 
@@ -42,6 +48,8 @@ const BACK_UV_RECT = { x: 0.5, y: 0, w: 0.5, h: 0.757 };
  * @property {string | null} [lanyardImage]
  * @property {number} [lanyardWidth]
  * @property {(() => void) | null} [onReady]
+ * @property {boolean} [retracting]
+ * @property {(() => void) | null} [onRetractComplete]
  */
 
 /** @param {LanyardProps} props */
@@ -56,6 +64,8 @@ export default function Lanyard({
   lanyardImage = null,
   lanyardWidth = 1,
   onReady = null,
+  retracting = false,
+  onRetractComplete = null,
 }) {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
@@ -87,6 +97,8 @@ export default function Lanyard({
             lanyardImage={lanyardImage}
             lanyardWidth={lanyardWidth}
             onReady={onReady}
+            retracting={retracting}
+            onRetractComplete={onRetractComplete}
           />
         </Physics>
         <Environment blur={0.75}>
@@ -134,6 +146,8 @@ function Band({
   lanyardImage = null,
   lanyardWidth = 1,
   onReady = null,
+  retracting = false,
+  onRetractComplete = null,
 }) {
   const band = useRef();
   const fixed = useRef();
@@ -142,8 +156,6 @@ function Band({
   const j3 = useRef();
   const card = useRef();
   const vec = new THREE.Vector3();
-  const ang = new THREE.Vector3();
-  const rot = new THREE.Vector3();
   const dir = new THREE.Vector3();
   const segmentProps = {
     type: "dynamic",
@@ -156,11 +168,19 @@ function Band({
     withBasePath("/lanyard/card.glb"),
   );
   const texture = useTexture(
-    lanyardImage || withBasePath("/lanyard/lanyard.png"),
+    lanyardImage || withBasePath("/lanyard/sunburst-lanyard.png"),
   );
   const frontTex = useTexture(frontImage || BLANK_PIXEL);
   const backTex = useTexture(backImage || BLANK_PIXEL);
   const readyNotified = useRef(false);
+  const retractionState = useRef(createLanyardRetractionState());
+  const retractionKicked = useRef(false);
+  const retractionCompleteNotified = useRef(false);
+  const onRetractCompleteRef = useRef(onRetractComplete);
+
+  useEffect(() => {
+    onRetractCompleteRef.current = onRetractComplete;
+  }, [onRetractComplete]);
 
   useEffect(() => {
     if (readyNotified.current) return;
@@ -237,6 +257,17 @@ function Band({
   const [dragged, drag] = useState(false);
   const [hovered, hover] = useState(false);
 
+  useEffect(() => {
+    retractionState.current = createLanyardRetractionState();
+    retractionKicked.current = false;
+    retractionCompleteNotified.current = false;
+
+    if (!retracting) return;
+
+    drag(false);
+    [card, j1, j2, j3, fixed].forEach((ref) => ref.current?.wakeUp());
+  }, [retracting]);
+
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j2, j3, [[0, 0, 0], [0, 0, 0], 1]);
@@ -254,6 +285,36 @@ function Band({
   }, [hovered, dragged]);
 
   useFrame((state, delta) => {
+    if (retracting && !dragged && fixed.current && card.current) {
+      if (!retractionKicked.current) {
+        const kick = getLanyardRetractionKick(card.current.translation().x);
+        card.current.applyImpulse(kick.impulse, true);
+        card.current.applyTorqueImpulse(kick.torque, true);
+        retractionKicked.current = true;
+      }
+
+      retractionState.current = stepLanyardRetraction(
+        retractionState.current,
+        delta,
+      );
+      fixed.current.setNextKinematicTranslation({
+        x: 0,
+        y: 4 + retractionState.current.offset,
+        z: 0,
+      });
+
+      if (
+        !retractionCompleteNotified.current &&
+        isLanyardRetractionComplete(
+          retractionState.current,
+          card.current.translation().y,
+        )
+      ) {
+        retractionCompleteNotified.current = true;
+        onRetractCompleteRef.current?.();
+      }
+    }
+
     if (dragged) {
       vec.set(state.pointer.x, state.pointer.y, 0.5).unproject(state.camera);
       dir.copy(vec).sub(state.camera.position).normalize();
@@ -293,13 +354,6 @@ function Band({
       band.current.geometry.setPoints(
         curve.getPoints(isMobile ? 16 : 32),
       );
-      ang.copy(card.current.angvel());
-      rot.copy(card.current.rotation());
-      card.current.setAngvel({
-        x: ang.x,
-        y: ang.y - rot.y * 0.25,
-        z: ang.z,
-      });
     }
   });
 
@@ -309,7 +363,7 @@ function Band({
   return (
     <>
       <group position={[0, 4, 0]}>
-        <RigidBody ref={fixed} {...segmentProps} type="fixed" />
+        <RigidBody ref={fixed} {...segmentProps} type="kinematicPosition" />
         <RigidBody position={[0.5, 0, 0]} ref={j1} {...segmentProps}>
           <BallCollider args={[0.1]} />
         </RigidBody>
@@ -371,7 +425,7 @@ function Band({
           resolution={isMobile ? [1000, 2000] : [1000, 1000]}
           useMap
           map={texture}
-          repeat={[-4, 1]}
+          repeat={[-1, 1]}
           lineWidth={lanyardWidth}
         />
       </mesh>

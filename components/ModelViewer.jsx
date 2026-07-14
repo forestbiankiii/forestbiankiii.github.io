@@ -737,7 +737,7 @@ export default function ModelViewer({
   fadeIn = false,
   autoRotate = false,
   autoRotateSpeed = 0.35,
-  onModelLoaded = undefined,
+  onModelLoaded = /** @type {(() => void) | undefined} */ (undefined),
   onPoseTransitionComplete = /** @type {((id: number) => void) | undefined} */ (undefined),
 }) {
   useEffect(() => {

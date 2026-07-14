@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import GlassButton from "@/components/GlassButton";
-import { markIntroSeen } from "@/components/introVisit";
 import { withBasePath } from "@/components/sitePath";
 
 const Lanyard = dynamic(() => import("@/components/Lanyard"), {
@@ -324,20 +323,23 @@ const DICT: Record<Lang, Dict> = {
 export default function AcademicPage() {
   const [lang, setLang] = useState<Lang>("en");
   const [lanyardOpen, setLanyardOpen] = useState(false);
+  const [lanyardClosing, setLanyardClosing] = useState(false);
   const [lanyardReady, setLanyardReady] = useState(false);
   const [lanyardInstance, setLanyardInstance] = useState(0);
   const t = DICT[lang];
 
-  useEffect(() => {
-    markIntroSeen();
-  }, []);
+  const retractLanyard = useCallback(() => {
+    if (!lanyardOpen || lanyardClosing) return;
+    setLanyardClosing(true);
+    setLanyardOpen(false);
+  }, [lanyardClosing, lanyardOpen]);
 
   useEffect(() => {
     if (!lanyardOpen) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setLanyardOpen(false);
+        retractLanyard();
       }
     };
 
@@ -346,7 +348,9 @@ export default function AcademicPage() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [lanyardOpen]);
+  }, [lanyardOpen, retractLanyard]);
+
+  const lanyardVisible = lanyardOpen || lanyardClosing;
 
   const profileItems: [string, string][] = [
     [t.profileLabels.name, "Wang Maolin"],
@@ -409,7 +413,8 @@ export default function AcademicPage() {
           width: 100vw;
           height: 100vh;
           height: 100dvh;
-          opacity: 0;
+          visibility: hidden;
+          opacity: 1;
           pointer-events: none;
           transform: translateY(-18rem);
           transform-origin: top center;
@@ -418,12 +423,18 @@ export default function AcademicPage() {
           pointer-events: none !important;
         }
         .academic-lanyard-drop {
+          visibility: visible;
           pointer-events: auto;
           animation: academic-lanyard-drop 760ms cubic-bezier(0.2, 0.8, 0.2, 1)
             forwards;
         }
         .academic-lanyard-drop * {
           pointer-events: auto !important;
+        }
+        .academic-lanyard-retract {
+          visibility: visible;
+          pointer-events: none;
+          transform: translateY(0) scale(1);
         }
         @keyframes academic-lanyard-drop {
           0% {
@@ -450,7 +461,6 @@ export default function AcademicPage() {
         <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-6 py-4">
           <Link
             href="/"
-            onClick={markIntroSeen}
             className="pointer-events-auto justify-self-start text-xl font-semibold tracking-[0.08em] text-neutral-800 transition-colors hover:text-neutral-950"
           >
             Bian<span className="text-neutral-400">Kiii</span>
@@ -459,15 +469,21 @@ export default function AcademicPage() {
             <button
               type="button"
               onClick={() => {
-                if (!lanyardOpen)
-                  setLanyardInstance((instance) => instance + 1);
-                setLanyardOpen(!lanyardOpen);
+                if (lanyardClosing) return;
+                if (lanyardOpen) {
+                  retractLanyard();
+                  return;
+                }
+                setLanyardReady(false);
+                setLanyardInstance((instance) => instance + 1);
+                setLanyardOpen(true);
               }}
               aria-controls="academic-lanyard-hanger"
-              aria-expanded={lanyardOpen}
+              aria-expanded={lanyardVisible}
+              disabled={lanyardClosing}
               className="rounded border border-neutral-950 bg-neutral-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-lime-300 transition-colors hover:bg-neutral-800"
             >
-              {lanyardOpen ? t.lanyard.close : t.lanyard.open}
+              {lanyardVisible ? t.lanyard.close : t.lanyard.open}
             </button>
           </div>
           <button
@@ -482,16 +498,27 @@ export default function AcademicPage() {
 
       <div
         id="academic-lanyard-hanger"
-        aria-hidden={!lanyardOpen}
+        aria-hidden={!lanyardVisible}
         className={`academic-lanyard-hanger ${
-          lanyardOpen && lanyardReady ? "academic-lanyard-drop" : ""
+          lanyardClosing
+            ? "academic-lanyard-retract"
+            : lanyardOpen && lanyardReady
+              ? "academic-lanyard-drop"
+              : ""
         }`}
       >
         <Lanyard
           key={lanyardInstance}
           position={[0, 0, 20]}
           gravity={[0, -40, 0]}
+          frontImage={withBasePath("/lanyard/sunburst-card.png")}
+          imageFit="cover"
           onReady={() => setLanyardReady(true)}
+          retracting={lanyardClosing}
+          onRetractComplete={() => {
+            setLanyardClosing(false);
+            setLanyardReady(false);
+          }}
         />
       </div>
 
