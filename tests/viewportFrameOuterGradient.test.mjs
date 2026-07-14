@@ -35,6 +35,7 @@ test("renders only two minimal WebGL windows for navigation and footer", () => {
 });
 
 test("uses one rectangle with two semicircular ends for the navigation", () => {
+  assert.match(globalStyles, /--nav-shell-height:\s*70px/);
   assert.match(source, /const navRadius = navHeight \/ 2/);
   assert.match(source, /height=\{geometry\.navHeight\}/);
   assert.match(source, /borderRadius=\{geometry\.navRadius\}/);
@@ -47,8 +48,8 @@ test("uses one rectangle with two semicircular ends for the navigation", () => {
   assert.doesNotMatch(source, /height=\{geometry\.navHeight \+ geometry\.radius\}/);
 });
 
-test("moves the complete navigation glass stack down by eight pixels", () => {
-  assert.match(globalStyles, /--nav-shell-block-inset:\s*8px/);
+test("moves the complete navigation glass stack twelve pixels from the top", () => {
+  assert.match(globalStyles, /--nav-shell-block-inset:\s*12px/);
   assert.match(
     globalStyles,
     /\.site-nav-shell\s*\{[\s\S]*?top:\s*var\(--nav-shell-block-inset\)/,

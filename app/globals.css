@@ -27,8 +27,8 @@
   --viewport-frame-radius: 38px;
   --viewport-frame-width: 10px;
   --nav-shell-inline-inset: clamp(7rem, 10vw, 12rem);
-  --nav-shell-block-inset: 8px;
-  --nav-shell-height: 5.25rem;
+  --nav-shell-block-inset: 12px;
+  --nav-shell-height: 70px;
   --nav-shell-bottom-radius: var(--viewport-frame-radius);
   --nav-shell-junction-radius: var(--viewport-frame-radius);
   --footer-shell-height: 7.25rem;
@@ -116,19 +116,6 @@ body {
   height: 100% !important;
 }
 
-.model-adjustment-shell {
-  position: fixed;
-  right: clamp(1.5rem, 3vw, 3rem);
-  bottom: clamp(1.5rem, 3vw, 3rem);
-  z-index: 80;
-  width: 4.5rem;
-  height: 4.5rem;
-  overflow: visible;
-  color: var(--color-text);
-  --model-trigger-scale: 1;
-  --model-trigger-glass-opacity: 1;
-}
-
 .site-content-layer {
   opacity: 1;
   pointer-events: auto;
@@ -193,12 +180,71 @@ body {
   padding: 1.5rem;
 }
 
-.scene-card--hero {
-  text-align: left;
+.scene-card--hero-liquid {
+  aspect-ratio: 1.7 / 1;
+  max-width: 28rem;
 }
 
-.scene-card--hero .card-spotlight__content {
-  padding: clamp(1.75rem, 3vw, 2.25rem);
+.hero-liquid-card-hit-area {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-liquid-card-tilt {
+  --hero-card-rotate-x: 0deg;
+  --hero-card-rotate-y: 0deg;
+  width: 100%;
+  height: 100%;
+  transform: perspective(800px) rotateX(var(--hero-card-rotate-x))
+    rotateY(var(--hero-card-rotate-y));
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.hero-liquid-card-tilt[data-tilted="true"] {
+  transition: transform 0.12s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.studio-liquid-glass.hero-liquid-card {
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow:
+    0 0.625rem 1.875rem color-mix(in srgb, #000 10%, transparent),
+    0 0 0 0.5px color-mix(in srgb, #000 5%, transparent);
+}
+
+.studio-liquid-glass.hero-liquid-card[data-liquid-glass-renderer="css"] {
+  background: color-mix(in srgb, var(--color-surface) 12%, transparent);
+  backdrop-filter: blur(1px) saturate(1.35);
+  -webkit-backdrop-filter: blur(1px) saturate(1.35);
+}
+
+.hero-liquid-card__name {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  padding-inline: 1.25rem;
+  color: var(--color-text);
+  font-size: clamp(2rem, 5.5vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-align: center;
+  text-indent: 0.14em;
+  text-shadow: 0 0.125rem 1rem color-mix(in srgb, var(--color-bg) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-liquid-card-tilt,
+  .hero-liquid-card-tilt[data-tilted="true"] {
+    transform: none;
+    transition: none;
+  }
+
 }
 
 .scene-card--contact .card-spotlight__content {
@@ -242,265 +288,6 @@ body {
   .scene-card-grid--academic,
   .scene-card-grid--contact {
     grid-template-columns: 1fr;
-  }
-}
-
-.is-model-adjustment-open .site-content-layer {
-  opacity: 0;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .site-content-layer,
-  .is-model-adjustment-open .site-content-layer {
-    transition-duration: 0ms;
-  }
-}
-
-.studio-liquid-glass.model-adjustment-trigger-glass {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  background: transparent !important;
-  border: 0;
-  box-shadow: none;
-  opacity: var(--model-trigger-glass-opacity, 1);
-  transform: scale(var(--model-trigger-scale, 1));
-  transform-origin: center;
-  transition:
-    transform 90ms cubic-bezier(0.22, 1.15, 0.36, 1),
-    opacity 0ms linear;
-}
-
-.model-adjustment-shell.is-open .model-adjustment-trigger-glass {
-  pointer-events: none;
-}
-
-.model-adjustment-shell.is-pressed .model-adjustment-trigger-glass {
-  transition-duration: 70ms;
-}
-
-/* While morphing, only the dialog morph canvas draws glass — one liquid piece. */
-.model-adjustment-shell.is-morphing .model-adjustment-trigger-glass {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.model-adjustment-shell.is-morphing .model-adjustment-trigger-glass > canvas,
-.model-adjustment-shell.is-morphing
-  .model-adjustment-trigger-glass:not(.ready) {
-  opacity: 0 !important;
-}
-
-.model-adjustment-shell .model-adjustment-trigger-glass > canvas {
-  opacity: var(--model-trigger-glass-opacity, 1) !important;
-  transition: opacity 80ms linear;
-}
-
-.studio-liquid-glass.model-adjustment-trigger-glass:not(.ready),
-.studio-liquid-glass.model-adjustment-trigger-glass.ready {
-  background: transparent !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.model-adjustment-dialog-glass .glass-surface__content,
-.model-adjustment-dialog-glass .studio-liquid-glass__content,
-.model-adjustment-trigger-glass .studio-liquid-glass__content {
-  padding: 0;
-}
-
-.model-adjustment-trigger {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  place-items: center;
-  color: var(--color-text);
-  background: transparent;
-  border: 0;
-  border-radius: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.model-adjustment-trigger__icon {
-  width: 41%;
-  height: 41%;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.45;
-  transition: transform 220ms ease;
-}
-
-.model-adjustment-shell:not(.is-pressed):not(.is-open)
-  .model-adjustment-trigger-glass:hover {
-  translate: 0 -2px;
-}
-
-.model-adjustment-trigger-glass:hover .model-adjustment-trigger__icon,
-.model-adjustment-shell.is-open .model-adjustment-trigger__icon {
-  transform: rotate(8deg) scale(1.04);
-}
-
-.model-adjustment-trigger:focus-visible,
-.model-adjustment-panel button:focus-visible,
-.model-adjustment-panel input:focus-visible {
-  outline: 2px solid var(--color-text);
-  outline-offset: -4px;
-}
-
-.studio-liquid-glass.model-adjustment-dialog-glass {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.85rem);
-  overflow: visible;
-  visibility: hidden;
-  pointer-events: none;
-  box-shadow: none;
-}
-
-.studio-liquid-glass.model-adjustment-dialog-glass.is-open,
-.studio-liquid-glass.model-adjustment-dialog-glass[data-morphing="true"] {
-  visibility: visible;
-}
-
-.studio-liquid-glass.model-adjustment-dialog-glass.is-open {
-  pointer-events: auto;
-}
-
-.model-adjustment-dialog-glass .studio-liquid-glass__content {
-  opacity: var(--studio-shape-progress, 0);
-  transition: none;
-}
-
-.model-adjustment-dialog-glass .model-adjustment-panel {
-  opacity: 1;
-}
-
-.model-adjustment-panel {
-  width: 100%;
-  color: var(--color-text);
-  border-radius: inherit;
-  overflow: hidden;
-}
-
-.model-adjustment-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1rem 0.85rem 1.15rem;
-}
-
-.model-adjustment-panel__eyebrow {
-  margin: 0 0 0.15rem;
-  color: color-mix(in srgb, var(--color-text) 56%, transparent);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.6rem;
-  letter-spacing: 0.22em;
-}
-
-.model-adjustment-panel h2 {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.model-adjustment-panel button {
-  color: inherit;
-  font: inherit;
-}
-
-.model-adjustment-panel__body {
-  display: grid;
-  gap: 0.95rem;
-  padding: 0.4rem 1.15rem 1.1rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-text) 12%, transparent);
-}
-
-.model-adjustment-panel__control {
-  display: grid;
-  gap: 0.45rem;
-  padding-top: 0.8rem;
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.75rem;
-}
-
-.model-adjustment-panel__control span {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.model-adjustment-panel__control output {
-  color: color-mix(in srgb, var(--color-text) 66%, transparent);
-  font-variant-numeric: tabular-nums;
-}
-
-.model-adjustment-panel__control input {
-  width: 100%;
-  accent-color: var(--color-text);
-  cursor: pointer;
-}
-
-.model-adjustment-panel__actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.6rem;
-}
-
-.model-adjustment-panel__mode,
-.model-adjustment-panel__reset {
-  min-height: 2.4rem;
-  padding: 0.55rem 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--color-text) 22%, transparent);
-  border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  cursor: pointer;
-}
-
-.model-adjustment-panel__mode.is-active {
-  color: var(--color-bg);
-  background: var(--color-text);
-}
-
-.model-adjustment-panel__hint {
-  margin: 0;
-  color: color-mix(in srgb, var(--color-text) 52%, transparent);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.68rem;
-  line-height: 1.45;
-}
-
-main[data-model-interaction="rotate"] {
-  cursor: grab;
-  user-select: none;
-}
-
-main[data-model-interaction="rotate"]:active {
-  cursor: grabbing;
-}
-
-main[data-model-interaction="rotate"] a,
-main[data-model-interaction="rotate"] button,
-main[data-model-interaction="rotate"] input,
-main[data-model-interaction="rotate"] [data-model-controls] {
-  cursor: pointer;
-}
-
-@media (max-width: 640px) {
-  .model-adjustment-shell {
-    right: 1rem;
-    bottom: 1rem;
   }
 }
 

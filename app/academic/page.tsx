@@ -7,10 +7,9 @@ import GlassButton from "@/components/GlassButton";
 import { markIntroSeen } from "@/components/introVisit";
 import { withBasePath } from "@/components/sitePath";
 
-const AcademicLanyard = dynamic(
-  () => import("@/components/AcademicLanyard"),
-  { ssr: false },
-);
+const Lanyard = dynamic(() => import("@/components/Lanyard"), {
+  ssr: false,
+});
 
 type Lang = "en" | "zh";
 
@@ -29,12 +28,7 @@ type Dict = {
     title: string;
     body: string;
   };
-  interactiveBadge: {
-    eyebrow: string;
-    title: string;
-    body: string;
-    hint: string;
-  };
+  lanyard: { open: string; close: string };
   profileLabels: {
     name: string;
     education: string;
@@ -105,12 +99,9 @@ const DICT: Record<Lang, Dict> = {
       body:
         "I am an undergraduate in Materials Science and Engineering at the University of Shanghai for Science and Technology, working on light–matter interaction at the nanoscale. This page collects my research interests, prior work, publications, and academic materials.",
     },
-    interactiveBadge: {
-      eyebrow: "Interactive identity",
-      title: "A badge you can pick up.",
-      body:
-        "My portrait, academic affiliation, and verified contact channels are gathered into a physics-driven ID badge inspired by the React Bits Lanyard component.",
-      hint: "Drag the card to move it. Release it to watch the lanyard settle.",
+    lanyard: {
+      open: "Open card",
+      close: "Close card",
     },
     profileLabels: {
       name: "Name",
@@ -231,12 +222,9 @@ const DICT: Record<Lang, Dict> = {
       body:
         "我是上海理工大学材料科学与工程专业的本科生,从事纳米尺度下光与物质相互作用的研究。本页面汇集我的研究兴趣、过往工作、发表论文及学术资料。",
     },
-    interactiveBadge: {
-      eyebrow: "互动身份牌",
-      title: "一张可以拿起来的学术胸牌。",
-      body:
-        "胸牌汇集了我的证件照、学术身份与经过核对的联系方式，并采用 React Bits Lanyard 的物理挂绳交互。",
-      hint: "拖动卡片即可移动，松手后挂绳会自然回落。",
+    lanyard: {
+      open: "打开卡片",
+      close: "关闭卡片",
     },
     profileLabels: {
       name: "姓名",
@@ -335,11 +323,30 @@ const DICT: Record<Lang, Dict> = {
 
 export default function AcademicPage() {
   const [lang, setLang] = useState<Lang>("en");
+  const [lanyardOpen, setLanyardOpen] = useState(false);
+  const [lanyardReady, setLanyardReady] = useState(false);
+  const [lanyardInstance, setLanyardInstance] = useState(0);
   const t = DICT[lang];
 
   useEffect(() => {
     markIntroSeen();
   }, []);
+
+  useEffect(() => {
+    if (!lanyardOpen) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setLanyardOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [lanyardOpen]);
 
   const profileItems: [string, string][] = [
     [t.profileLabels.name, "Wang Maolin"],
@@ -385,7 +392,7 @@ export default function AcademicPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-white text-neutral-950">
+    <main className="min-h-screen overflow-x-clip bg-white text-neutral-950">
       <style>{`
         .ruby-name ruby { ruby-position: over; }
         .ruby-name rt {
@@ -395,25 +402,97 @@ export default function AcademicPage() {
           color: #6b7280;
           text-transform: lowercase;
         }
+        .academic-lanyard-hanger {
+          position: fixed;
+          inset: 0;
+          z-index: 40;
+          width: 100vw;
+          height: 100vh;
+          height: 100dvh;
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-18rem);
+          transform-origin: top center;
+        }
+        .academic-lanyard-hanger * {
+          pointer-events: none !important;
+        }
+        .academic-lanyard-drop {
+          pointer-events: auto;
+          animation: academic-lanyard-drop 760ms cubic-bezier(0.2, 0.8, 0.2, 1)
+            forwards;
+        }
+        .academic-lanyard-drop * {
+          pointer-events: auto !important;
+        }
+        @keyframes academic-lanyard-drop {
+          0% {
+            opacity: 0;
+            transform: translateY(-18rem);
+          }
+          72% {
+            opacity: 1;
+            transform: translateY(0.9rem) scale(1);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .academic-lanyard-drop {
+            animation-duration: 1ms;
+          }
+        }
       `}</style>
-      {/* Top bar: back link + language switch */}
+      {/* Top bar: card trigger + language switch */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-50 border-b border-neutral-200/70 bg-white/60 backdrop-blur-md">
-        <div className="flex w-full items-center justify-between px-6 py-4">
+        <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-6 py-4">
           <Link
             href="/"
             onClick={markIntroSeen}
-            className="pointer-events-auto text-xl font-semibold tracking-[0.08em] text-neutral-800 transition-colors hover:text-neutral-950"
+            className="pointer-events-auto justify-self-start text-xl font-semibold tracking-[0.08em] text-neutral-800 transition-colors hover:text-neutral-950"
           >
             Bian<span className="text-neutral-400">Kiii</span>
           </Link>
+          <div className="academic-lanyard-trigger pointer-events-auto relative justify-self-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (!lanyardOpen)
+                  setLanyardInstance((instance) => instance + 1);
+                setLanyardOpen(!lanyardOpen);
+              }}
+              aria-controls="academic-lanyard-hanger"
+              aria-expanded={lanyardOpen}
+              className="rounded border border-neutral-950 bg-neutral-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-lime-300 transition-colors hover:bg-neutral-800"
+            >
+              {lanyardOpen ? t.lanyard.close : t.lanyard.open}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setLang(lang === "en" ? "zh" : "en")}
-            className="pointer-events-auto rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-700 transition-colors hover:border-neutral-500 hover:text-neutral-950"
+            className="pointer-events-auto justify-self-end rounded border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-700 transition-colors hover:border-neutral-500 hover:text-neutral-950"
           >
             {lang === "en" ? t.langButton.toZh : t.langButton.toEn}
           </button>
         </div>
+      </div>
+
+      <div
+        id="academic-lanyard-hanger"
+        aria-hidden={!lanyardOpen}
+        className={`academic-lanyard-hanger ${
+          lanyardOpen && lanyardReady ? "academic-lanyard-drop" : ""
+        }`}
+      >
+        <Lanyard
+          key={lanyardInstance}
+          position={[0, 0, 20]}
+          gravity={[0, -40, 0]}
+          onReady={() => setLanyardReady(true)}
+        />
       </div>
 
       <header className="border-b border-neutral-200 bg-white">
@@ -486,32 +565,6 @@ export default function AcademicPage() {
               </div>
             ))}
           </dl>
-        </div>
-      </section>
-
-      {/* Interactive academic badge */}
-      <section className="overflow-hidden border-b border-neutral-200 bg-[#f1f3eb]">
-        <div className="mx-auto grid max-w-6xl gap-2 px-6 py-12 lg:grid-cols-[0.72fr_1.28fr] lg:items-center lg:gap-8 lg:py-0">
-          <div className="relative z-10 lg:py-20">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-neutral-500">
-              {t.interactiveBadge.eyebrow}
-            </p>
-            <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-950 md:text-5xl">
-              {t.interactiveBadge.title}
-            </h2>
-            <p className="mt-6 max-w-lg text-base leading-8 text-neutral-700">
-              {t.interactiveBadge.body}
-            </p>
-            <div className="mt-8 flex max-w-md items-start gap-4 border-t border-neutral-300 pt-5 text-sm leading-6 text-neutral-600">
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-950 text-xs font-semibold text-lime-300">
-                ↕
-              </span>
-              <p>{t.interactiveBadge.hint}</p>
-            </div>
-          </div>
-          <div className="-mx-6 min-w-0 lg:mx-0">
-            <AcademicLanyard lang={lang} />
-          </div>
         </div>
       </section>
 

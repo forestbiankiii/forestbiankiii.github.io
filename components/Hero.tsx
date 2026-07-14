@@ -1,11 +1,84 @@
 "use client";
 
-import { motion } from "framer-motion";
-import GlassButton from "@/components/GlassButton";
-import SpotlightCard from "@/components/SpotlightCard";
-import { withBasePath } from "@/components/sitePath";
+import {
+  useEffect,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import StudioLiquidGlass from "@/components/StudioLiquidGlass";
+import { getLiquidGlassCardTilt } from "@/components/liquidGlassCardParams";
 
 export default function Hero() {
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const baseRectRef = useRef<DOMRect | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  function applyCardTilt(clientX: number, clientY: number) {
+    const target = tiltRef.current;
+    if (!target || prefersReducedMotion) return;
+
+    const rect = baseRectRef.current ?? target.getBoundingClientRect();
+    const tilt = getLiquidGlassCardTilt(rect, clientX, clientY);
+
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    animationFrameRef.current = requestAnimationFrame(() => {
+      target.style.setProperty(
+        "--hero-card-rotate-x",
+        `${tilt.rotateX}deg`,
+      );
+      target.style.setProperty(
+        "--hero-card-rotate-y",
+        `${tilt.rotateY}deg`,
+      );
+      animationFrameRef.current = null;
+    });
+  }
+
+  function handlePointerEnter(event: ReactPointerEvent<HTMLDivElement>) {
+    if (prefersReducedMotion) return;
+    baseRectRef.current = event.currentTarget.getBoundingClientRect();
+    if (tiltRef.current) {
+      tiltRef.current.dataset.tilted = "true";
+    }
+    applyCardTilt(event.clientX, event.clientY);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!baseRectRef.current) {
+      baseRectRef.current = event.currentTarget.getBoundingClientRect();
+      if (tiltRef.current) {
+        tiltRef.current.dataset.tilted = "true";
+      }
+    }
+    applyCardTilt(event.clientX, event.clientY);
+  }
+
+  function resetCardTilt() {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    baseRectRef.current = null;
+
+    const target = tiltRef.current;
+    if (!target) return;
+    target.dataset.tilted = "false";
+    target.style.setProperty("--hero-card-rotate-x", "0deg");
+    target.style.setProperty("--hero-card-rotate-y", "0deg");
+  }
+
   return (
     <section
       id="home"
@@ -14,61 +87,37 @@ export default function Hero() {
     >
       <div className="scene-section__layout">
         <div className="scene-section__content">
-          <SpotlightCard className="scene-card scene-card--hero">
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="mb-5 text-sm uppercase tracking-[0.3em] text-primary"
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="scene-card scene-card--hero-liquid"
+          >
+            <div
+              className="hero-liquid-card-hit-area"
+              onPointerEnter={handlePointerEnter}
+              onPointerMove={handlePointerMove}
+              onPointerLeave={resetCardTilt}
+              onPointerCancel={resetCardTilt}
             >
-              Welcome to my quantum space
-            </motion.p>
-
-            {/* Name */}
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="mb-5 text-4xl font-bold tracking-tight md:text-6xl xl:text-7xl"
-            >
-              <span className="text-text">Forest</span>{" "}
-              <span className="text-name-secondary">BianKiii</span>
-            </motion.h1>
-
-            {/* Tagline */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="mb-9 max-w-xl text-base leading-relaxed text-text-secondary md:text-lg"
-            >
-              Creative Developer & Digital Explorer.
-              <br />
-              Building the future, one quantum leap at a time.
-            </motion.p>
-
-            {/* CTA Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="flex flex-col items-start gap-4 sm:flex-row"
-            >
-              <GlassButton
-                href="#projects"
-                className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
+              <div
+                ref={tiltRef}
+                className="hero-liquid-card-tilt"
+                data-tilted="false"
               >
-                View My Work
-              </GlassButton>
-              <GlassButton
-                href={withBasePath("/academic")}
-                className="px-8 py-3 text-sm uppercase tracking-wider text-primary"
-              >
-                Academic Homepage
-              </GlassButton>
-            </motion.div>
-          </SpotlightCard>
+                <StudioLiquidGlass
+                  width="100%"
+                  height="100%"
+                  borderRadius={20}
+                  blurRadius={1}
+                  capturePad={72}
+                  className="hero-liquid-card"
+                >
+                  <h1 className="hero-liquid-card__name">BIANKIII</h1>
+                </StudioLiquidGlass>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>

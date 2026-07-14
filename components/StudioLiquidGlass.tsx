@@ -46,13 +46,6 @@ import {
   LIQUID_GLASS_STUDIO_CONFIG,
   getLiquidGlassStudioUniforms,
 } from "./liquidGlassStudioConfig";
-import {
-  MODEL_PANEL_GAP,
-  MODEL_PANEL_MORPH_DURATION_MS,
-  MODEL_PANEL_TRIGGER_SIZE,
-  getModelPanelEase,
-  getModelPanelGlassShape,
-} from "./modelControls";
 import styles from "./StudioLiquidGlass.module.css";
 
 interface StudioLiquidGlassProps {
@@ -93,6 +86,166 @@ type StudioGlassStyle = CSSProperties & {
 
 const CAPTURE_PAD = 96;
 const IDLE_POLL_MS = 240;
+const MORPH_CIRCLE_SIZE = 72;
+const MORPH_GAP = 14;
+const MORPH_DURATION_MS = 210;
+const MORPH_PHASE1_END = 45 / MORPH_DURATION_MS;
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function getStudioMorphEase(elapsedRatio: number) {
+  return Math.min(1, Math.max(0, elapsedRatio));
+}
+
+function kinematicEaseOut(u: number) {
+  const t = Math.min(1, Math.max(0, u));
+  return t * (2 - t);
+}
+
+function boundedBackEaseOut(u: number) {
+  const t = Math.min(1, Math.max(0, u));
+  if (t < 0.72) return smoothstep(0, 0.72, t) * 1.08;
+  if (t < 0.9) {
+    return 1.08 + (0.97 - 1.08) * smoothstep(0.72, 0.9, t);
+  }
+  return 0.97 + (1 - 0.97) * smoothstep(0.9, 1, t);
+}
+
+function getClosingCircleBounceScale(u: number) {
+  const t = Math.min(1, Math.max(0, u));
+  if (t >= 0.55) return 1;
+  if (t >= 0.28) return 0.88 + 0.12 * smoothstep(0.28, 0.55, t);
+  if (t >= 0.1) return 1.1 + (0.88 - 1.1) * smoothstep(0.1, 0.28, t);
+  return 1 + 0.1 * smoothstep(0, 0.1, t);
+}
+
+function getStudioGlassMorphShape({
+  progress,
+  panelWidth,
+  panelHeight,
+  borderRadius,
+  circleSize = MORPH_CIRCLE_SIZE,
+  gap = MORPH_GAP,
+  opening = true,
+}: {
+  progress: number;
+  panelWidth: number;
+  panelHeight: number;
+  borderRadius: number;
+  circleSize?: number;
+  gap?: number;
+  opening?: boolean;
+}) {
+  const p = Math.min(1, Math.max(0, progress));
+  const size = Math.max(8, circleSize);
+  const circleR = size * 0.5;
+  const circleX = panelWidth - circleR;
+  const circleY = panelHeight + gap + circleR;
+  const endX = panelWidth * 0.5;
+  const endY = panelHeight * 0.5;
+
+  const dx = endX - circleX;
+  const dy = endY - circleY;
+  const fullDist = Math.hypot(dx, dy) || 1;
+  const dirX = dx / fullDist;
+  const dirY = dy / fullDist;
+
+  const samplePhase1 = (u: number) => {
+    const detach = kinematicEaseOut(u);
+    return {
+      centerX: circleX + dirX * fullDist * detach,
+      centerY: circleY + dirY * fullDist * detach,
+      detach,
+    };
+  };
+
+  let centerX: number;
+  let centerY: number;
+  let shapeWidth: number;
+  let shapeHeight: number;
+  let shapeRadius: number;
+  let travelT: number;
+  let growT: number;
+  let phase: 1 | 2;
+
+  if (p <= MORPH_PHASE1_END) {
+    phase = 1;
+    const u = MORPH_PHASE1_END <= 0 ? 1 : p / MORPH_PHASE1_END;
+    const sample = samplePhase1(u);
+    const closeBounceScale = opening ? 1 : getClosingCircleBounceScale(u);
+    centerX = sample.centerX;
+    centerY = sample.centerY;
+    shapeWidth = size * closeBounceScale;
+    shapeHeight = size * closeBounceScale;
+    shapeRadius = circleR * closeBounceScale;
+    travelT = sample.detach;
+    growT = 0;
+  } else {
+    phase = 2;
+    const v = (p - MORPH_PHASE1_END) / Math.max(1e-6, 1 - MORPH_PHASE1_END);
+    const morph = boundedBackEaseOut(v);
+    const targetRadius = Math.min(
+      borderRadius,
+      panelWidth * 0.5,
+      panelHeight * 0.5,
+    );
+
+    shapeWidth = circleR * 2 + (panelWidth - circleR * 2) * morph;
+    shapeHeight = circleR * 2 + (panelHeight - circleR * 2) * morph;
+    shapeRadius = circleR + (targetRadius - circleR) * morph;
+    centerX = endX;
+    centerY = endY;
+    travelT = 1;
+    growT = 1;
+
+    const halfW = shapeWidth * 0.5;
+    const halfH = shapeHeight * 0.5;
+    centerX =
+      shapeWidth > panelWidth
+        ? endX
+        : Math.min(panelWidth - halfW, Math.max(halfW, centerX));
+    const maxCenterY = panelHeight + gap + size - halfH;
+    centerY =
+      shapeHeight > panelHeight
+        ? endY
+        : Math.min(maxCenterY, Math.max(halfH, centerY));
+  }
+
+  const shape1Amount = 0;
+  const shape1Radius = circleR * Math.max(0.2, 1 - growT);
+
+  return {
+    shapeWidth,
+    shapeHeight,
+    shapeRadius,
+    centerX,
+    centerY,
+    shape1X: circleX,
+    shape1Y: circleY,
+    shape1Radius,
+    shape1Amount,
+    mergeRate: 0.12 * shape1Amount,
+    showShape1: shape1Amount > 0.05,
+    contentOpacity: smoothstep(0.45, 0.9, p),
+    morphCanvasOpacity: p > 0.0005 ? 1 : 0,
+    triggerGlassOpacity: p > 0.0005 ? 0 : 1,
+    unifiedMorph: p > 0.0005 && p < 0.98,
+    travelT,
+    growT,
+    phase,
+  };
+}
+
+const ANTIALIASED_FRAGMENT_MAIN_SHADER = FragmentMainShader.replace(
+  "    outColor = mix(outColor, vec4(0.0), smoothstep(-0.001, 0.001, merged));",
+  [
+    "    float edgeAa = max(fwidth(merged) * 0.75, 0.5 / u_resolution.y);",
+    "    outColor = mix(outColor, vec4(0.0), smoothstep(-edgeAa, edgeAa, merged));",
+  ].join("\n"),
+);
 
 const OVERLAY_BG_SHADER = `#version 300 es
 precision highp float;
@@ -225,7 +378,7 @@ export default function StudioLiquidGlass({
   shaderHalo = true,
   expanded = true,
   morphFromCircle = false,
-  circleSize = MODEL_PANEL_TRIGGER_SIZE,
+  circleSize = MORPH_CIRCLE_SIZE,
   onMorphProgress,
   style: styleProp,
 }: StudioLiquidGlassProps) {
@@ -240,7 +393,7 @@ export default function StudioLiquidGlass({
     from: expanded ? 1 : 0,
     to: expanded ? 1 : 0,
     startTime: 0,
-    duration: MODEL_PANEL_MORPH_DURATION_MS,
+    duration: MORPH_DURATION_MS,
   });
   const lastFrameRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
@@ -273,7 +426,7 @@ export default function StudioLiquidGlass({
         from: expanded ? 1 : 0,
         to: expanded ? 1 : 0,
         startTime: 0,
-        duration: MODEL_PANEL_MORPH_DURATION_MS,
+        duration: MORPH_DURATION_MS,
       };
       return;
     }
@@ -293,7 +446,7 @@ export default function StudioLiquidGlass({
     // Same full duration for open and close; scale only if interrupted mid-way.
     clock.duration = Math.max(
       120,
-      MODEL_PANEL_MORPH_DURATION_MS * Math.abs(to - from),
+      MORPH_DURATION_MS * Math.abs(to - from),
     );
   }, [expanded, morphFromCircle]);
 
@@ -411,7 +564,10 @@ export default function StudioLiquidGlass({
             },
             {
               name: "mainPass",
-              shader: { vertex: VertexShader, fragment: FragmentMainShader },
+              shader: {
+                vertex: VertexShader,
+                fragment: ANTIALIASED_FRAGMENT_MAIN_SHADER,
+              },
               inputs: { u_blurredBg: "hBlurPass", u_bg: "bgPass" },
               outputToScreen: true,
             },
@@ -481,7 +637,7 @@ export default function StudioLiquidGlass({
             1,
             Math.max(0, (now - clock.startTime) / clock.duration),
           );
-          const eased = getModelPanelEase(ratio);
+          const eased = getStudioMorphEase(ratio);
           clock.progress = clock.from + (clock.to - clock.from) * eased;
           if (ratio >= 1) {
             clock.progress = clock.to;
@@ -558,22 +714,16 @@ export default function StudioLiquidGlass({
       const dpr = Math.min(window.devicePixelRatio || 1, Math.max(1, maxDpr));
       const panelW = Math.max(1, container.clientWidth);
       const panelH = Math.max(1, container.clientHeight);
-      const triggerEl = container.parentElement?.querySelector(
-        ".model-adjustment-trigger",
-      ) as HTMLElement | null;
-      // Morph geometry always uses the resting trigger size so press-grow
-      // (and its CSS width transition) cannot inflate the sticky circle.
+      // Morph geometry uses the configured circle size for stable layout.
       const liveCircleSize = Math.max(
         8,
-        morphFromCircle
-          ? circleSize
-          : triggerEl?.clientWidth || circleSize,
+        circleSize,
       );
       // Extra bottom pad so the sticky blob can reach the trigger button.
       const bottomPad = morphFromCircle
         ? Math.max(
             pad,
-            MODEL_PANEL_GAP + liveCircleSize + pad * 0.35,
+            MORPH_GAP + liveCircleSize + pad * 0.35,
           )
         : pad;
       const cssW = Math.max(1, Math.round(panelW + pad * 2));
@@ -654,13 +804,13 @@ export default function StudioLiquidGlass({
       lastTextureH = captureCanvas.height;
 
       const shape = morphFromCircle
-        ? getModelPanelGlassShape({
+        ? getStudioGlassMorphShape({
             progress,
             panelWidth: panelW,
             panelHeight: panelH,
             borderRadius,
             circleSize: liveCircleSize,
-            gap: MODEL_PANEL_GAP,
+            gap: MORPH_GAP,
             opening: expandedRef.current,
           })
         : {

@@ -393,7 +393,8 @@ fn fs_main(
     }
   }
 
-  output = mix(output, vec4f(0.0), smoothstep(-0.001, 0.001, merged));
+  let edgeAa = max(fwidth(merged) * 0.75, 0.5 / u.u_resolution.y);
+  output = mix(output, vec4f(0.0), smoothstep(-edgeAa, edgeAa, merged));
   let outside = smoothstep(-0.0008, 0.0012, merged);
   let distancePixels = max(merged, 0.0) * resolution1x.y;
   let falloff = max(u.u_shadowExpand, 1.0);

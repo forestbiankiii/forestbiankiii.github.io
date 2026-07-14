@@ -35,3 +35,13 @@ test("does not keep any Hu Lab route in the app tree", () => {
 
   assert.equal(existsSync(routeUrl), false);
 });
+
+test("does not keep Hu Lab public assets in the repository", () => {
+  for (const file of [
+    "../public/hu-jinming.jpg",
+    "../public/hu-lab-og.png",
+    "../public/hu-lab-representative-work.jpg",
+  ]) {
+    assert.equal(existsSync(new URL(file, import.meta.url)), false);
+  }
+});
