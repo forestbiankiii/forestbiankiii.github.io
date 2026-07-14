@@ -20,10 +20,6 @@ const glassButtonSource = readFileSync(
   new URL("../components/GlassButton.tsx", import.meta.url),
   "utf8",
 );
-const modelPanelSource = readFileSync(
-  new URL("../components/ModelAdjustmentPanel.tsx", import.meta.url),
-  "utf8",
-);
 
 test("prefers the upstream WebGPU multipass backend with WebGL2 fallback", () => {
   const gpuUtils = readFileSync(
@@ -216,12 +212,24 @@ test("disables viewport glass highlights and the rectangular shader halo", () =>
   assert.equal(viewportSource.match(/highlightIntensity=\{0\}/g)?.length, 2);
 });
 
+test("antialiases curved glass edges with a pixel-adaptive SDF transition", () => {
+  const webgpuShader = readFileSync(
+    new URL(
+      "../components/liquid-glass-studio/wgslShaders.ts",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(studioSource, /FragmentMainShader\.replace/);
+  assert.match(studioSource, /fwidth\(merged\)/);
+  assert.match(studioSource, /smoothstep\(-edgeAa, edgeAa, merged\)/);
+  assert.match(webgpuShader, /fwidth\(merged\)/);
+  assert.match(webgpuShader, /smoothstep\(-edgeAa, edgeAa, merged\)/);
+});
+
 test("disables the shader sampling halo around glass buttons", () => {
   assert.match(glassButtonSource, /shaderHalo=\{false\}/);
-  assert.match(
-    modelPanelSource,
-    /className="model-adjustment-trigger-glass"[\s\S]*?shaderHalo=\{false\}/,
-  );
 });
 
 test("disables navigation and footer blur with a valid identity kernel", () => {

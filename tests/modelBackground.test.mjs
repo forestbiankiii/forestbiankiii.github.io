@@ -93,3 +93,41 @@ test("preserves centering when applying a model scale multiplier", async () => {
     },
   );
 });
+
+test("keeps auto framing independent from the exported model scale", async () => {
+  const background = await import(moduleUrl.href);
+  const viewerSource = readFileSync(
+    new URL("../components/ModelViewer.jsx", import.meta.url),
+    "utf8",
+  );
+
+  const cameraDistance = background.getNormalizedAutoFrameDistance(
+    0.02,
+    50,
+  );
+  const startRadius =
+    0.02 *
+    background.getNormalizedModelTransform(
+      { x: 0, y: 0, z: 0 },
+      0.02,
+      1.55,
+    ).scale;
+  const endRadius =
+    0.02 *
+    background.getNormalizedModelTransform(
+      { x: 0, y: 0, z: 0 },
+      0.02,
+      1.45,
+    ).scale;
+
+  assert.ok(Number.isFinite(cameraDistance));
+  assert.equal(
+    (startRadius / cameraDistance) / (endRadius / cameraDistance),
+    1.55 / 1.45,
+  );
+  assert.match(viewerSource, /getNormalizedAutoFrameDistance\(/);
+  assert.doesNotMatch(
+    viewerSource,
+    /const fitRadius = sphere\.radius \* transform\.scale/,
+  );
+});

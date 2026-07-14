@@ -35,3 +35,43 @@ export const liquidGlassCardControls = {
   springSizeFactor: 0,
   step: 9,
 } as const;
+
+export const LIQUID_GLASS_CARD_TILT_FACTOR = 25;
+export const LIQUID_GLASS_CARD_PERSPECTIVE = 800;
+
+interface LiquidGlassCardRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+interface LiquidGlassCardTilt {
+  rotateX: number;
+  rotateY: number;
+}
+
+export function getLiquidGlassCardTilt(
+  rect: LiquidGlassCardRect,
+  clientX: number,
+  clientY: number,
+  maxTilt = LIQUID_GLASS_CARD_TILT_FACTOR,
+): LiquidGlassCardTilt {
+  const halfWidth = Math.max(rect.width / 2, 1);
+  const halfHeight = Math.max(rect.height / 2, 1);
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const pointerX = Math.max(
+    -1,
+    Math.min(1, (clientX - centerX) / halfWidth),
+  );
+  const pointerY = Math.max(
+    -1,
+    Math.min(1, (clientY - centerY) / halfHeight),
+  );
+
+  return {
+    rotateX: pointerY === 0 ? 0 : -pointerY * maxTilt,
+    rotateY: pointerX * maxTilt,
+  };
+}

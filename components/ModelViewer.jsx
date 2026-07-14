@@ -24,7 +24,11 @@ import {
   useProgress,
 } from "@react-three/drei";
 import * as THREE from "three";
-import { getNormalizedModelTransform } from "./modelBackground";
+import {
+  getNormalizedAutoFrameDistance,
+  getNormalizedModelTransform,
+} from "./modelBackground";
+import { sampleModelPoseTransition } from "./modelControls";
 
 const isTouch =
   typeof window !== "undefined" &&
@@ -122,10 +126,12 @@ function ModelInner({
   xOff,
   yOff,
   modelScale,
+  rotationX,
+  rotationY,
+  rotationZ,
+  poseTransition,
   rotationResetKey,
   pivot,
-  initYaw,
-  initPitch,
   minZoom,
   maxZoom,
   enableMouseParallax,
@@ -138,6 +144,7 @@ function ModelInner({
   autoRotate,
   autoRotateSpeed,
   onLoaded,
+  onPoseTransitionComplete,
 }) {
   const outerRef = useRef(null);
   const innerRef = useRef(null);
@@ -153,7 +160,20 @@ function ModelInner({
   const pivotWorldRef = useRef(new THREE.Vector3());
   const normalizationRef = useRef(null);
   const modelScaleRef = useRef(modelScale);
+  const displayedPoseRef = useRef({
+    modelScale,
+    modelXOffset: xOff,
+    modelYOffset: yOff,
+    modelRotationX: rotationX,
+    modelRotationY: rotationY,
+    modelRotationZ: rotationZ,
+  });
+  const activeTransitionRef = useRef(null);
+  const transitionStartedAtRef = useRef(null);
+  const completedTransitionIdRef = useRef(null);
+  const onPoseTransitionCompleteRef = useRef(onPoseTransitionComplete);
   modelScaleRef.current = modelScale;
+  onPoseTransitionCompleteRef.current = onPoseTransitionComplete;
 
   useLayoutEffect(() => {
     const group = innerRef.current;
@@ -212,13 +232,18 @@ function ModelInner({
     group.updateWorldMatrix(true, true);
     outer.getWorldPosition(pivotWorldRef.current);
     pivot.copy(pivotWorldRef.current);
-    outer.rotation.set(initPitch, initYaw, 0);
+    const displayedPose = displayedPoseRef.current;
+    outer.rotation.set(
+      deg2rad(displayedPose.modelRotationX),
+      deg2rad(displayedPose.modelRotationY),
+      deg2rad(displayedPose.modelRotationZ),
+    );
 
     if (autoFrame && camera.isPerspectiveCamera) {
-      const fitRadius = sphere.radius * transform.scale;
-      const distance =
-        (fitRadius * 1.2) /
-        Math.sin((camera.fov * Math.PI) / 180 / 2);
+      const distance = getNormalizedAutoFrameDistance(
+        sphere.radius,
+        camera.fov,
+      );
 
       camera.position.set(
         pivotWorldRef.current.x,
@@ -264,8 +289,6 @@ function ModelInner({
     camera,
     content,
     fadeIn,
-    initPitch,
-    initYaw,
     onLoaded,
     pivot,
   ]);
@@ -274,7 +297,7 @@ function ModelInner({
     const group = innerRef.current;
     const normalization = normalizationRef.current;
 
-    if (!group || !normalization) return;
+    if (!group || !normalization || activeTransitionRef.current) return;
 
     const transform = getNormalizedModelTransform(
       normalization.center,
@@ -294,14 +317,64 @@ function ModelInner({
 
   useEffect(() => {
     const outer = outerRef.current;
+    const nextPose = {
+      modelScale,
+      modelXOffset: xOff,
+      modelYOffset: yOff,
+      modelRotationX: rotationX,
+      modelRotationY: rotationY,
+      modelRotationZ: rotationZ,
+    };
+
+    if (activeTransitionRef.current) return;
+    displayedPoseRef.current = nextPose;
     if (!outer) return;
 
-    outer.rotation.set(initPitch, initYaw, 0);
+    outer.rotation.set(
+      deg2rad(rotationX),
+      deg2rad(rotationY),
+      deg2rad(rotationZ),
+    );
+    invalidate();
+  }, [modelScale, rotationX, rotationY, rotationZ, xOff, yOff]);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    if (!outer) return;
+
+    const displayedPose = displayedPoseRef.current;
+    activeTransitionRef.current = null;
+    transitionStartedAtRef.current = null;
+    outer.rotation.set(
+      deg2rad(displayedPose.modelRotationX),
+      deg2rad(displayedPose.modelRotationY),
+      deg2rad(displayedPose.modelRotationZ),
+    );
     velocityRef.current = { x: 0, y: 0 };
     targetHoverRef.current = { x: 0, y: 0 };
     currentHoverRef.current = { x: 0, y: 0 };
     invalidate();
-  }, [initPitch, initYaw, rotationResetKey]);
+  }, [rotationResetKey]);
+
+  useEffect(() => {
+    if (!poseTransition) return;
+    if (
+      activeTransitionRef.current?.id === poseTransition.id ||
+      completedTransitionIdRef.current === poseTransition.id
+    ) {
+      return;
+    }
+
+    activeTransitionRef.current = poseTransition;
+    transitionStartedAtRef.current = null;
+    displayedPoseRef.current = { ...poseTransition.from };
+    velocityRef.current = { x: 0, y: 0 };
+    targetParallaxRef.current = { x: 0, y: 0 };
+    currentParallaxRef.current = { x: 0, y: 0 };
+    targetHoverRef.current = { x: 0, y: 0 };
+    currentHoverRef.current = { x: 0, y: 0 };
+    invalidate();
+  }, [poseTransition]);
 
   useEffect(() => {
     if (!enableManualRotation || isTouch) return undefined;
@@ -324,9 +397,7 @@ function ModelInner({
       if (
         manualRotationTarget === "window" &&
         event.target instanceof Element &&
-        event.target.closest(
-          "a, button, input, select, textarea, [data-model-controls]",
-        )
+        event.target.closest("a, button, input, select, textarea")
       ) {
         return;
       }
@@ -519,11 +590,63 @@ function ModelInner({
     return () => window.removeEventListener("pointermove", handlePointerMove);
   }, [enableHoverRotation, enableMouseParallax]);
 
-  useFrame((_, deltaTime) => {
+  useFrame((state, deltaTime) => {
     const outer = outerRef.current;
     if (!outer) return;
 
     let needsNextFrame = false;
+    let transitionIsActive = false;
+    const activeTransition = activeTransitionRef.current;
+
+    if (activeTransition) {
+      transitionIsActive = true;
+      const now = state.clock.elapsedTime * 1000;
+      if (transitionStartedAtRef.current === null) {
+        transitionStartedAtRef.current = now;
+      }
+      const duration = Math.max(0, activeTransition.durationMs);
+      const elapsed = now - transitionStartedAtRef.current;
+      const linearProgress =
+        duration === 0 ? 1 : Math.min(1, elapsed / duration);
+      displayedPoseRef.current = sampleModelPoseTransition(
+        activeTransition.from,
+        activeTransition.to,
+        linearProgress,
+      );
+
+      const group = innerRef.current;
+      const normalization = normalizationRef.current;
+      if (group && normalization) {
+        const transform = getNormalizedModelTransform(
+          normalization.center,
+          normalization.radius,
+          displayedPoseRef.current.modelScale,
+        );
+        group.scale.setScalar(transform.scale);
+        group.position.set(
+          transform.position.x,
+          transform.position.y,
+          transform.position.z,
+        );
+      }
+
+      outer.rotation.set(
+        deg2rad(displayedPoseRef.current.modelRotationX),
+        deg2rad(displayedPoseRef.current.modelRotationY),
+        deg2rad(displayedPoseRef.current.modelRotationZ),
+      );
+
+      if (linearProgress >= 1) {
+        activeTransitionRef.current = null;
+        transitionStartedAtRef.current = null;
+        completedTransitionIdRef.current = activeTransition.id;
+        onPoseTransitionCompleteRef.current?.(activeTransition.id);
+      } else {
+        needsNextFrame = true;
+      }
+    }
+
+    const displayedPose = displayedPoseRef.current;
     const currentParallax = currentParallaxRef.current;
     const targetParallax = targetParallaxRef.current;
     const currentHover = currentHoverRef.current;
@@ -539,22 +662,24 @@ function ModelInner({
     currentHover.y += (targetHover.y - currentHover.y) * HOVER_EASE;
 
     const projectedPivot = pivotWorldRef.current.clone().project(camera);
-    projectedPivot.x += xOff + currentParallax.x;
-    projectedPivot.y += yOff + currentParallax.y;
+    projectedPivot.x += displayedPose.modelXOffset + currentParallax.x;
+    projectedPivot.y += displayedPose.modelYOffset + currentParallax.y;
     outer.position.copy(projectedPivot.unproject(camera));
 
-    outer.rotation.x += currentHover.x - previousHoverX;
-    outer.rotation.y += currentHover.y - previousHoverY;
+    if (!transitionIsActive) {
+      outer.rotation.x += currentHover.x - previousHoverX;
+      outer.rotation.y += currentHover.y - previousHoverY;
 
-    if (autoRotate) {
-      outer.rotation.y += autoRotateSpeed * deltaTime;
-      needsNextFrame = true;
+      if (autoRotate) {
+        outer.rotation.y += autoRotateSpeed * deltaTime;
+        needsNextFrame = true;
+      }
+
+      outer.rotation.y += velocityRef.current.x;
+      outer.rotation.x += velocityRef.current.y;
+      velocityRef.current.x *= INERTIA;
+      velocityRef.current.y *= INERTIA;
     }
-
-    outer.rotation.y += velocityRef.current.x;
-    outer.rotation.x += velocityRef.current.y;
-    velocityRef.current.x *= INERTIA;
-    velocityRef.current.y *= INERTIA;
 
     if (
       Math.abs(velocityRef.current.x) > 0.0001 ||
@@ -586,6 +711,10 @@ export default function ModelViewer({
   modelXOffset = 0,
   modelYOffset = 0,
   modelScale = 1,
+  modelRotationX = /** @type {number | undefined} */ (undefined),
+  modelRotationY = /** @type {number | undefined} */ (undefined),
+  modelRotationZ = 0,
+  poseTransition = /** @type {import("./modelControls").ModelPoseTransitionRequest | null} */ (null),
   rotationResetKey = 0,
   defaultRotationX = -50,
   defaultRotationY = 20,
@@ -609,6 +738,7 @@ export default function ModelViewer({
   autoRotate = false,
   autoRotateSpeed = 0.35,
   onModelLoaded = undefined,
+  onPoseTransitionComplete = /** @type {((id: number) => void) | undefined} */ (undefined),
 }) {
   useEffect(() => {
     useGLTF.preload(url);
@@ -619,8 +749,8 @@ export default function ModelViewer({
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
-  const initialYaw = deg2rad(defaultRotationX);
-  const initialPitch = deg2rad(defaultRotationY);
+  const resolvedRotationX = modelRotationX ?? defaultRotationY;
+  const resolvedRotationY = modelRotationY ?? defaultRotationX;
   const cameraZ = Math.min(
     Math.max(defaultZoom, minZoomDistance),
     maxZoomDistance,
@@ -743,10 +873,12 @@ export default function ModelViewer({
             xOff={modelXOffset}
             yOff={modelYOffset}
             modelScale={modelScale}
+            rotationX={resolvedRotationX}
+            rotationY={resolvedRotationY}
+            rotationZ={modelRotationZ}
+            poseTransition={poseTransition}
             rotationResetKey={rotationResetKey}
             pivot={pivot}
-            initYaw={initialYaw}
-            initPitch={initialPitch}
             minZoom={minZoomDistance}
             maxZoom={maxZoomDistance}
             enableMouseParallax={enableMouseParallax}
@@ -759,6 +891,7 @@ export default function ModelViewer({
             autoRotate={autoRotate}
             autoRotateSpeed={autoRotateSpeed}
             onLoaded={onModelLoaded}
+            onPoseTransitionComplete={onPoseTransitionComplete}
           />
         </Suspense>
 

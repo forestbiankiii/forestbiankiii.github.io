@@ -55,6 +55,23 @@ export function getNormalizedModelTransform(
   };
 }
 
+export function getNormalizedAutoFrameDistance(
+  radius: number,
+  fovDegrees: number,
+  padding = 1.2,
+) {
+  const normalizedTransform = getNormalizedModelTransform(
+    { x: 0, y: 0, z: 0 },
+    radius,
+  );
+  const normalizedRadius = radius * normalizedTransform.scale;
+
+  return (
+    (normalizedRadius * padding) /
+    Math.sin((fovDegrees * Math.PI) / 180 / 2)
+  );
+}
+
 export function getModelBackgroundColor(theme: SiteTheme) {
   return MODEL_BACKGROUND_COLORS[theme];
 }

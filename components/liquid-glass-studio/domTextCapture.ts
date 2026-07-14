@@ -7,7 +7,6 @@
 const EXCLUDED_DOM_ANCESTORS = [
   ".site-nav-shell",
   ".viewport-frame-glass-regions",
-  ".model-adjustment-shell",
   "script",
   "style",
 ].join(",");

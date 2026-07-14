@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Intro from "@/components/Intro";
 import Navbar from "@/components/Navbar";
@@ -10,7 +10,6 @@ import AcademicPreview from "@/components/AcademicPreview";
 import Contact from "@/components/Contact";
 import ViewportFrame from "@/components/ViewportFrame";
 import ModelViewer from "@/components/ModelViewer";
-import ModelAdjustmentPanel from "@/components/ModelAdjustmentPanel";
 import {
   hasSeenIntro,
   isPageReload,
@@ -27,13 +26,30 @@ import {
   MODEL_BACKGROUND_VIEWER_PROPS,
 } from "@/components/modelBackground";
 import {
-  clampModelControlValue,
-  DEFAULT_MODEL_CONTROLS,
-  toggleModelInteractionMode,
-  type ModelNumericControl,
+  DEFAULT_MODEL_POSES,
+  getModelControlsFromPose,
+  MODEL_TRANSITION_DURATION_MS,
+  type ModelPose,
+  type ModelPoseKey,
+  type ModelPoseTransitionRequest,
+  type ModelTransitionStatus,
 } from "@/components/modelControls";
+import {
+  MODEL_SCENE_ORDER,
+  areModelPosesEqual,
+  getModelSceneAtViewportAnchor,
+  getModelScenePoseKey,
+  type ModelScene,
+} from "@/components/modelScenePath";
+
 type ThemeSweepDirection = "to-black" | "to-white";
+
 const themeSweepDuration = 1800;
+
+interface PendingModelTarget {
+  pose: ModelPose;
+  poseKey: ModelPoseKey;
+}
 
 function removeThemeSweepSnapshots() {
   document
@@ -70,11 +86,24 @@ export default function Home() {
   const [entered, setEntered] = useState(false);
   const [introResolved, setIntroResolved] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("black");
-  const [modelControls, setModelControls] = useState(
-    DEFAULT_MODEL_CONTROLS,
+  const [modelPose, setModelPose] = useState<ModelPose>(() =>
+    getModelControlsFromPose(DEFAULT_MODEL_POSES.start),
   );
-  const [modelResetVersion, setModelResetVersion] = useState(0);
-  const [modelAdjustmentOpen, setModelAdjustmentOpen] = useState(false);
+  const [modelTransitionStatus, setModelTransitionStatus] =
+    useState<ModelTransitionStatus>("idle");
+  const [modelPoseTransition, setModelPoseTransition] =
+    useState<ModelPoseTransitionRequest | null>(null);
+  const modelTransitionIdRef = useRef(0);
+  const currentModelPoseRef = useRef<ModelPose>({
+    ...DEFAULT_MODEL_POSES.start,
+  });
+  const activeTransitionTargetRef = useRef<ModelPose | null>(null);
+  const activeTransitionPoseKeyRef = useRef<ModelPoseKey>("start");
+  const pendingModelTargetRef = useRef<PendingModelTarget | null>(null);
+  const modelTransitionStatusRef =
+    useRef<ModelTransitionStatus>("idle");
+  const activeModelSceneRef = useRef<ModelScene>("home");
+
   useEffect(() => {
     setEntered(hasSeenIntro() && !isPageReload());
     setIntroResolved(true);
@@ -104,34 +133,148 @@ export default function Home() {
     setTheme(nextTheme);
   }
 
-  function handleModelNumericChange(
-    control: ModelNumericControl,
-    value: number,
+  function beginModelTransition(
+    from: ModelPose,
+    to: ModelPose,
+    targetPoseKey: ModelPoseKey,
   ) {
-    setModelControls((current) => ({
-      ...current,
-      [control]: clampModelControlValue(control, value),
-    }));
+    const fromPose = { ...from };
+    const targetPose = { ...to };
+
+    if (areModelPosesEqual(fromPose, targetPose)) {
+      currentModelPoseRef.current = targetPose;
+      activeTransitionTargetRef.current = null;
+      activeTransitionPoseKeyRef.current = targetPoseKey;
+      modelTransitionStatusRef.current = "complete";
+      setModelPose(getModelControlsFromPose(targetPose));
+      setModelTransitionStatus("complete");
+      return;
+    }
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    modelTransitionIdRef.current += 1;
+    currentModelPoseRef.current = fromPose;
+    activeTransitionTargetRef.current = targetPose;
+    activeTransitionPoseKeyRef.current = targetPoseKey;
+    modelTransitionStatusRef.current = "running";
+    setModelPose(getModelControlsFromPose(fromPose));
+    setModelTransitionStatus("running");
+    setModelPoseTransition({
+      id: modelTransitionIdRef.current,
+      from: fromPose,
+      to: targetPose,
+      durationMs: reducedMotion ? 0 : MODEL_TRANSITION_DURATION_MS,
+      reducedMotion,
+    });
   }
 
-  function handleToggleModelInteractionMode() {
-    setModelControls((current) => ({
-      ...current,
-      interactionMode: toggleModelInteractionMode(
-        current.interactionMode,
-      ),
-    }));
+  function handleModelTransitionComplete() {
+    const completedTarget = {
+      ...(activeTransitionTargetRef.current ?? currentModelPoseRef.current),
+    };
+    currentModelPoseRef.current = completedTarget;
+    activeTransitionTargetRef.current = null;
+    setModelPose(getModelControlsFromPose(completedTarget));
+
+    const pendingTarget = pendingModelTargetRef.current;
+    pendingModelTargetRef.current = null;
+    if (
+      pendingTarget &&
+      !areModelPosesEqual(completedTarget, pendingTarget.pose)
+    ) {
+      beginModelTransition(
+        completedTarget,
+        pendingTarget.pose,
+        pendingTarget.poseKey,
+      );
+      return;
+    }
+
+    modelTransitionStatusRef.current = "complete";
+    setModelTransitionStatus("complete");
   }
 
-  function handleResetModelControls() {
-    setModelControls(DEFAULT_MODEL_CONTROLS);
-    setModelResetVersion((current) => current + 1);
-  }
+  useEffect(() => {
+    if (!entered) return;
+
+    let animationFrame = 0;
+    const updateActiveModelScene = () => {
+      animationFrame = 0;
+      const sections: Array<{
+        scene: ModelScene;
+        top: number;
+        bottom: number;
+      }> = [];
+
+      MODEL_SCENE_ORDER.forEach((scene) => {
+        const section = document.querySelector<HTMLElement>(
+          `[data-model-scene="${scene}"]`,
+        );
+        if (!section) return;
+        const bounds = section.getBoundingClientRect();
+        sections.push({ scene, top: bounds.top, bottom: bounds.bottom });
+      });
+
+      const nextScene = getModelSceneAtViewportAnchor(
+        sections,
+        window.innerHeight * 0.42,
+      );
+      if (!nextScene) return;
+
+      activeModelSceneRef.current = nextScene;
+      const targetPoseKey = getModelScenePoseKey(nextScene);
+      const targetPose = {
+        ...DEFAULT_MODEL_POSES[targetPoseKey],
+      };
+
+      if (modelTransitionStatusRef.current === "running") {
+        if (
+          activeTransitionTargetRef.current &&
+          areModelPosesEqual(activeTransitionTargetRef.current, targetPose)
+        ) {
+          pendingModelTargetRef.current = null;
+        } else {
+          pendingModelTargetRef.current = {
+            pose: targetPose,
+            poseKey: targetPoseKey,
+          };
+        }
+        return;
+      }
+
+      if (areModelPosesEqual(currentModelPoseRef.current, targetPose)) {
+        return;
+      }
+
+      beginModelTransition(
+        currentModelPoseRef.current,
+        targetPose,
+        targetPoseKey,
+      );
+    };
+    const requestSceneUpdate = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(updateActiveModelScene);
+    };
+
+    updateActiveModelScene();
+    window.addEventListener("scroll", requestSceneUpdate, { passive: true });
+    window.addEventListener("resize", requestSceneUpdate);
+
+    return () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+      window.removeEventListener("scroll", requestSceneUpdate);
+      window.removeEventListener("resize", requestSceneUpdate);
+    };
+  }, [entered]);
 
   return (
     <main
       data-site-theme={theme}
-      data-model-interaction={modelControls.interactionMode}
       className="relative min-h-screen overflow-hidden text-text"
     >
       {entered && (
@@ -145,19 +288,17 @@ export default function Home() {
             width="100%"
             height="100%"
             {...MODEL_BACKGROUND_VIEWER_PROPS}
-            modelScale={modelControls.modelScale}
-            rotationResetKey={modelResetVersion}
-            modelXOffset={modelControls.modelXOffset}
-            modelYOffset={modelControls.modelYOffset}
-            enableMouseParallax={
-              modelControls.interactionMode === "browse"
-            }
-            enableHoverRotation={
-              modelControls.interactionMode === "browse"
-            }
-            enableManualRotation={
-              modelControls.interactionMode === "rotate"
-            }
+            modelScale={modelPose.modelScale}
+            modelRotationX={modelPose.modelRotationX}
+            modelRotationY={modelPose.modelRotationY}
+            modelRotationZ={modelPose.modelRotationZ}
+            modelXOffset={modelPose.modelXOffset}
+            modelYOffset={modelPose.modelYOffset}
+            poseTransition={modelPoseTransition}
+            onPoseTransitionComplete={handleModelTransitionComplete}
+            enableMouseParallax={modelTransitionStatus !== "running"}
+            enableHoverRotation={modelTransitionStatus !== "running"}
+            enableManualRotation={false}
             manualRotationTarget="window"
           />
         </div>
@@ -173,37 +314,21 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
-              className={`relative z-10 min-h-screen${modelAdjustmentOpen ? " is-model-adjustment-open" : ""}`}
+              className="relative z-10 min-h-screen"
             >
-              <ModelAdjustmentPanel
-                controls={modelControls}
-                onNumericChange={handleModelNumericChange}
-                onToggleInteractionMode={
-                  handleToggleModelInteractionMode
-                }
-                onReset={handleResetModelControls}
-                onOpenChange={setModelAdjustmentOpen}
-              />
-
-              <div className="site-content-layer" aria-hidden={modelAdjustmentOpen}>
+              <div className="site-content-layer">
                 <ViewportFrame />
 
-                {/* Navigation */}
                 <Navbar onToggleTheme={handleToggleTheme} />
 
-                {/* Hero Section */}
                 <Hero />
 
-                {/* Projects Section */}
                 <Projects />
 
-                {/* Academic Section */}
                 <AcademicPreview />
 
-                {/* Contact Section */}
                 <Contact />
 
-                {/* Footer */}
                 <footer className="site-footer-shell">
                   <div className="site-footer-content mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 md:flex-row">
                     <p className="site-footer-copy text-xs tracking-wide">

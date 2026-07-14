@@ -2,10 +2,15 @@
   position: relative;
   z-index: 0;
   width: 100%;
-  height: min(720px, 78vh);
-  min-height: 560px;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   touch-action: none;
+  transform: scale(1);
+  transform-origin: center;
 }
 
 .lanyard-wrapper canvas {
@@ -14,35 +19,8 @@
   height: 100%;
 }
 
-.academic-lanyard-shell {
-  position: relative;
-  width: 100%;
-  min-width: 0;
-}
-
-.academic-lanyard-loading {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  color: rgb(82 82 82);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-@media (max-width: 767px) {
-  .lanyard-wrapper {
-    height: 570px;
-    min-height: 520px;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .lanyard-wrapper {
     touch-action: pan-y;
   }
 }
-
