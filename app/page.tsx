@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import Intro from "@/components/Intro";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Projects from "@/components/Projects";
@@ -10,15 +8,7 @@ import AcademicPreview from "@/components/AcademicPreview";
 import Contact from "@/components/Contact";
 import ViewportFrame from "@/components/ViewportFrame";
 import ModelViewer from "@/components/ModelViewer";
-import {
-  hasSeenIntro,
-  isPageReload,
-  markIntroSeen,
-} from "@/components/introVisit";
-import {
-  getSiteThemeFromIntroSide,
-  type SiteTheme,
-} from "@/components/siteTheme";
+import type { SiteTheme } from "@/components/siteTheme";
 import { withBasePath } from "@/components/sitePath";
 import {
   FERRARI_MODEL_PATH,
@@ -45,6 +35,7 @@ import {
 type ThemeSweepDirection = "to-black" | "to-white";
 
 const themeSweepDuration = 1800;
+const entryLoaderFallbackMs = 8000;
 
 interface PendingModelTarget {
   pose: ModelPose;
@@ -83,9 +74,8 @@ function createThemeSweepSnapshot(direction: ThemeSweepDirection) {
 }
 
 export default function Home() {
-  const [entered, setEntered] = useState(false);
-  const [introResolved, setIntroResolved] = useState(false);
   const [theme, setTheme] = useState<SiteTheme>("black");
+  const [siteReady, setSiteReady] = useState(false);
   const [modelPose, setModelPose] = useState<ModelPose>(() =>
     getModelControlsFromPose(DEFAULT_MODEL_POSES.start),
   );
@@ -104,20 +94,21 @@ export default function Home() {
     useRef<ModelTransitionStatus>("idle");
   const activeModelSceneRef = useRef<ModelScene>("home");
 
+  const handleModelLoaded = useCallback(() => {
+    setSiteReady(true);
+  }, []);
+
   useEffect(() => {
-    setEntered(hasSeenIntro() && !isPageReload());
-    setIntroResolved(true);
+    const fallbackTimer = window.setTimeout(() => {
+      setSiteReady(true);
+    }, entryLoaderFallbackMs);
+
+    return () => window.clearTimeout(fallbackTimer);
   }, []);
 
   useEffect(() => {
     return removeThemeSweepSnapshots;
   }, []);
-
-  function handleEnterTheme(introSide: SiteTheme) {
-    markIntroSeen();
-    setTheme(getSiteThemeFromIntroSide(introSide));
-    setEntered(true);
-  }
 
   function handleToggleTheme() {
     const nextTheme: SiteTheme = theme === "black" ? "white" : "black";
@@ -197,8 +188,6 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!entered) return;
-
     let animationFrame = 0;
     const updateActiveModelScene = () => {
       animationFrame = 0;
@@ -270,81 +259,80 @@ export default function Home() {
       window.removeEventListener("scroll", requestSceneUpdate);
       window.removeEventListener("resize", requestSceneUpdate);
     };
-  }, [entered]);
+  }, []);
 
   return (
     <main
       data-site-theme={theme}
       className="relative min-h-screen overflow-hidden text-text"
     >
-      {entered && (
-        <div
-          aria-hidden="true"
-          className="site-model-background"
-          style={{ backgroundColor: getModelBackgroundColor(theme) }}
-        >
-          <ModelViewer
-            url={withBasePath(FERRARI_MODEL_PATH)}
-            width="100%"
-            height="100%"
-            {...MODEL_BACKGROUND_VIEWER_PROPS}
-            modelScale={modelPose.modelScale}
-            modelRotationX={modelPose.modelRotationX}
-            modelRotationY={modelPose.modelRotationY}
-            modelRotationZ={modelPose.modelRotationZ}
-            modelXOffset={modelPose.modelXOffset}
-            modelYOffset={modelPose.modelYOffset}
-            poseTransition={modelPoseTransition}
-            onPoseTransitionComplete={handleModelTransitionComplete}
-            enableMouseParallax={modelTransitionStatus !== "running"}
-            enableHoverRotation={modelTransitionStatus !== "running"}
-            enableManualRotation={false}
-            manualRotationTarget="window"
-          />
+      <div
+        className="site-entry-loader"
+        data-ready={siteReady}
+        role="status"
+        aria-label="Loading Biankiii portfolio"
+        aria-live="polite"
+      >
+        <img
+          className="site-entry-loader__logo"
+          src={withBasePath("/logo-animated.svg")}
+          alt=""
+          width={512}
+          height={512}
+        />
+      </div>
+      <div
+        aria-hidden="true"
+        className="site-model-background"
+        style={{ backgroundColor: getModelBackgroundColor(theme) }}
+      >
+        <ModelViewer
+          url={withBasePath(FERRARI_MODEL_PATH)}
+          width="100%"
+          height="100%"
+          {...MODEL_BACKGROUND_VIEWER_PROPS}
+          modelScale={modelPose.modelScale}
+          modelRotationX={modelPose.modelRotationX}
+          modelRotationY={modelPose.modelRotationY}
+          modelRotationZ={modelPose.modelRotationZ}
+          modelXOffset={modelPose.modelXOffset}
+          modelYOffset={modelPose.modelYOffset}
+          poseTransition={modelPoseTransition}
+          onModelLoaded={handleModelLoaded}
+          onPoseTransitionComplete={handleModelTransitionComplete}
+          enableMouseParallax={modelTransitionStatus !== "running"}
+          enableHoverRotation={modelTransitionStatus !== "running"}
+          enableManualRotation={false}
+          manualRotationTarget="window"
+        />
+      </div>
+      <div className="relative z-10 min-h-screen">
+        <div className="site-content-layer">
+          <ViewportFrame />
+
+          <Navbar onToggleTheme={handleToggleTheme} />
+
+          <Hero />
+
+          <Projects />
+
+          <AcademicPreview />
+
+          <Contact />
+
+          <footer className="site-footer-shell">
+            <div className="site-footer-content mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 md:flex-row">
+              <p className="site-footer-copy text-xs tracking-wide">
+                &copy; {new Date().getFullYear()} BIAN
+                <span>KIII</span>. All rights reserved.
+              </p>
+              <p className="site-footer-note text-xs">
+                Crafted with quantum precision
+              </p>
+            </div>
+          </footer>
         </div>
-      )}
-      <AnimatePresence>
-        {introResolved && (
-          !entered ? (
-            <Intro key="cover" onEnter={handleEnterTheme} />
-          ) : (
-            <motion.div
-              key="site"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}
-              className="relative z-10 min-h-screen"
-            >
-              <div className="site-content-layer">
-                <ViewportFrame />
-
-                <Navbar onToggleTheme={handleToggleTheme} />
-
-                <Hero />
-
-                <Projects />
-
-                <AcademicPreview />
-
-                <Contact />
-
-                <footer className="site-footer-shell">
-                  <div className="site-footer-content mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 py-5 md:flex-row">
-                    <p className="site-footer-copy text-xs tracking-wide">
-                      &copy; {new Date().getFullYear()} BIAN
-                      <span>KIII</span>. All rights reserved.
-                    </p>
-                    <p className="site-footer-note text-xs">
-                      Crafted with quantum precision
-                    </p>
-                  </div>
-                </footer>
-              </div>
-            </motion.div>
-          )
-        )}
-      </AnimatePresence>
+      </div>
     </main>
   );
 }

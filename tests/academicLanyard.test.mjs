@@ -35,7 +35,7 @@ test("provides the React Bits lanyard interaction contract", () => {
   assert.match(source, /backImage/);
   assert.match(source, /lanyardImage/);
   assert.match(source, /\/lanyard\/card\.glb/);
-  assert.match(source, /\/lanyard\/lanyard\.png/);
+  assert.match(source, /\/lanyard\/sunburst-lanyard\.png/);
 });
 
 test("removes the personalized badge generator", () => {
@@ -55,7 +55,8 @@ test("drops the original lanyard directly from its top-bar button", () => {
   assert.match(source, /ssr:\s*false/);
   assert.match(source, /const \[lanyardOpen, setLanyardOpen\] = useState\(false\)/);
   assert.match(source, /const \[lanyardReady, setLanyardReady\] = useState\(false\)/);
-  assert.match(source, /setLanyardOpen\(!lanyardOpen\)/);
+  assert.match(source, /retractLanyard\(\)/);
+  assert.match(source, /setLanyardOpen\(true\)/);
   assert.match(source, /aria-controls="academic-lanyard-hanger"/);
   assert.match(source, /id="academic-lanyard-hanger"/);
   assert.match(source, /academic-lanyard-trigger/);
@@ -121,7 +122,7 @@ test("restarts the complete lanyard on every opening", () => {
   );
   assert.match(
     source,
-    /if \(!lanyardOpen\)\s*setLanyardInstance\(\(instance\) => instance \+ 1\)/,
+    /setLanyardReady\(false\)[\s\S]*setLanyardInstance\(\(instance\) => instance \+ 1\)[\s\S]*setLanyardOpen\(true\)/,
   );
   assert.match(source, /<Lanyard\s+key=\{lanyardInstance\}/);
 });

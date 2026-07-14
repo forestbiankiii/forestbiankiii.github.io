@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="logo-title logo-description" shape-rendering="geometricPrecision">
+  <title id="logo-title">Animated Biankiii personal logo</title>
+  <desc id="logo-description">An animated white quantum light burst centered inside a regular black hexagon.</desc>
+  <style>
+    .ray {
+      transform-box: view-box;
+      transform-origin: 256px 256px;
+      animation: radial-burst 5.2s cubic-bezier(.2, .82, .2, 1) infinite;
+      animation-delay: var(--delay);
+      transform: scaleX(.04);
+      opacity: 0;
+    }
+
+    #primary-beam {
+      animation: incident-beam 5.2s cubic-bezier(.2, .74, .2, 1) infinite;
+      clip-path: inset(0 0 0 100%);
+      opacity: 0;
+    }
+
+    #quantum-core {
+      animation: core-expand 5.2s cubic-bezier(.18, .88, .22, 1) infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+      transform: scale(0);
+      opacity: 0;
+    }
+
+    @keyframes incident-beam {
+      0%, 2% { clip-path: inset(0 0 0 100%); opacity: 0; }
+      3% { clip-path: inset(0 0 0 100%); opacity: 1; }
+      16% { clip-path: inset(0); opacity: 1; }
+      21% { clip-path: inset(0 100% 0 0); opacity: 1; }
+      22%, 94% { clip-path: inset(0 100% 0 0); opacity: 0; }
+      100% { clip-path: inset(0 0 0 100%); opacity: 0; }
+    }
+
+    @keyframes core-expand {
+      0%, 14% { transform: scale(0); opacity: 0; }
+      15% { transform: scale(.06); opacity: 1; }
+      16% { transform: scale(.18); opacity: 1; }
+      24% { transform: scale(1.16); opacity: 1; }
+      29%, 92% { transform: scale(1); opacity: 1; }
+      98%, 100% { transform: scale(0); opacity: 0; }
+    }
+
+    @keyframes radial-burst {
+      0%, 27% { transform: scaleX(.04); opacity: 0; }
+      30% { transform: scaleX(.12); opacity: 1; }
+      43% { transform: scaleX(1.05); opacity: 1; }
+      49%, 82% { transform: scaleX(1); opacity: 1; }
+      86% { transform: scaleX(.3); opacity: 0; }
+      90%, 100% { transform: scaleX(.04); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ray,
+      #primary-beam,
+      #quantum-core {
+        animation: none;
+        transform: none;
+        opacity: 1;
+      }
+
+      #primary-beam {
+        clip-path: inset(0);
+      }
+    }
+  </style>
+  <polygon id="hexagon" points="256,16 463.846,136 463.846,376 256,496 48.154,376 48.154,136" fill="#000000"/>
+  <g id="ray-burst">
+    <g transform="rotate(-7 256 256)">
+      <path id="ray-01" d="M308 251 L420 250 L423 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .00s"/>
+    </g>
+    <g transform="rotate(18 256 256)">
+      <path id="ray-02" d="M308 250 L400 247 L405 259 L308 261 Z" fill="#ffffff" class="ray" style="--delay: .02s"/>
+    </g>
+    <g transform="rotate(35 256 256)">
+      <path id="ray-03" d="M308 251 L438 247 L442 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .04s"/>
+    </g>
+    <g transform="rotate(55 256 256)">
+      <path id="ray-04" d="M308 248 L392 244 L398 267 L308 263 Z" fill="#ffffff" class="ray" style="--delay: .06s"/>
+    </g>
+    <g transform="rotate(75 256 256)">
+      <path id="ray-05" d="M308 247 L446 241 L450 270 L308 264 Z" fill="#ffffff" class="ray" style="--delay: .08s"/>
+    </g>
+    <g transform="rotate(92 256 256)">
+      <path id="ray-06" d="M308 252 L370 249 L372 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .10s"/>
+    </g>
+    <g transform="rotate(110 256 256)">
+      <path id="ray-07" d="M308 250 L421 246 L426 264 L308 262 Z" fill="#ffffff" class="ray" style="--delay: .12s"/>
+    </g>
+    <g transform="rotate(128 256 256)">
+      <path id="ray-08" d="M308 252 L377 250 L379 260 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .14s"/>
+    </g>
+    <g transform="rotate(148 256 256)">
+      <path id="ray-09" d="M308 249 L432 245 L435 266 L308 263 Z" fill="#ffffff" class="ray" style="--delay: .16s"/>
+    </g>
+    <g transform="rotate(169 256 256)">
+      <path id="ray-10" d="M308 253 L381 252 L382 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .18s"/>
+    </g>
+    <g transform="rotate(190 256 256)">
+      <path id="ray-11" d="M308 248 L409 243 L412 266 L308 263 Z" fill="#ffffff" class="ray" style="--delay: .20s"/>
+    </g>
+    <g transform="rotate(207 256 256)">
+      <path id="ray-12" d="M308 252 L437 248 L439 262 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .22s"/>
+    </g>
+    <g transform="rotate(226 256 256)">
+      <path id="ray-13" d="M308 247 L379 243 L384 269 L308 264 Z" fill="#ffffff" class="ray" style="--delay: .24s"/>
+    </g>
+    <g transform="rotate(245 256 256)">
+      <path id="ray-14" d="M308 248 L438 244 L443 268 L308 263 Z" fill="#ffffff" class="ray" style="--delay: .26s"/>
+    </g>
+    <g transform="rotate(264 256 256)">
+      <path id="ray-15" d="M308 253 L413 251 L416 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .28s"/>
+    </g>
+    <g transform="rotate(282 256 256)">
+      <path id="ray-16" d="M308 251 L425 247 L428 263 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .30s"/>
+    </g>
+    <g transform="rotate(300 256 256)">
+      <path id="ray-17" d="M308 246 L380 242 L386 270 L308 265 Z" fill="#ffffff" class="ray" style="--delay: .32s"/>
+    </g>
+    <g transform="rotate(-25 256 256)">
+      <path id="ray-18" d="M308 252 L372 250 L375 261 L308 260 Z" fill="#ffffff" class="ray" style="--delay: .34s"/>
+    </g>
+    <g transform="rotate(-44 256 256)">
+      <path id="primary-beam" d="M250 249 L510 245 L510 267 L250 263 Z" fill="#ffffff"/>
+    </g>
+  </g>
+  <circle id="quantum-core" cx="256" cy="256" r="64" fill="#ffffff"/>
+</svg>

@@ -8,6 +8,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import StudioLiquidGlass from "@/components/StudioLiquidGlass";
 import { getLiquidGlassCardTilt } from "@/components/liquidGlassCardParams";
+import { withBasePath } from "@/components/sitePath";
 
 export default function Hero() {
   const tiltRef = useRef<HTMLDivElement>(null);
@@ -113,7 +114,17 @@ export default function Hero() {
                   capturePad={72}
                   className="hero-liquid-card"
                 >
-                  <h1 className="hero-liquid-card__name">BIANKIII</h1>
+                  <div className="hero-liquid-card__identity">
+                    <img
+                      src={withBasePath("/logo-animated.svg")}
+                      alt=""
+                      aria-hidden="true"
+                      className="hero-liquid-card__logo"
+                      width="96"
+                      height="96"
+                    />
+                    <h1 className="hero-liquid-card__name">BIANKIII</h1>
+                  </div>
                 </StudioLiquidGlass>
               </div>
             </div>

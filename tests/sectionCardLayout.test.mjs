@@ -49,17 +49,20 @@ test("assigns every homepage section an opposing model-aware layout", () => {
   assert.match(sectionSources.Contact, /scene-section--model-left/);
 });
 
-test("renders Home as a BIANKIII-only liquid glass bank card", () => {
+test("renders Home as a BIANKIII liquid glass card with the animated logo", () => {
   const hero = sectionSources.Hero;
 
   assert.match(hero, /import StudioLiquidGlass/);
+  assert.match(hero, /import \{ withBasePath \} from "@\/components\/sitePath"/);
   assert.match(hero, /className="hero-liquid-card"/);
   assert.match(hero, /width="100%"/);
   assert.match(hero, /height="100%"/);
   assert.match(hero, /borderRadius=\{20\}/);
   assert.match(hero, /blurRadius=\{1\}/);
+  assert.match(hero, /src=\{withBasePath\("\/logo-animated\.svg"\)\}/);
+  assert.match(hero, /className="hero-liquid-card__logo"/);
   assert.match(hero, />\s*BIANKIII\s*</);
-  assert.doesNotMatch(hero, /GlassButton|SpotlightCard|withBasePath/);
+  assert.doesNotMatch(hero, /GlassButton|SpotlightCard/);
   assert.doesNotMatch(
     hero,
     /Welcome to my quantum space|Forest|Creative Developer|View My Work|Academic Homepage/,
@@ -72,6 +75,8 @@ test("renders Home as a BIANKIII-only liquid glass bank card", () => {
     globals,
     /\.scene-card--hero-liquid\s*\{[\s\S]*?max-width:\s*28rem/,
   );
+  assert.match(globals, /\.hero-liquid-card__identity\s*\{/);
+  assert.match(globals, /\.hero-liquid-card__logo\s*\{/);
   assert.match(globals, /\.hero-liquid-card__name\s*\{/);
 });
 

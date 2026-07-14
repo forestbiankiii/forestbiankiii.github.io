@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import GooeyNav, { type GooeyNavItem } from "@/components/GooeyNav";
+import { withBasePath } from "@/components/sitePath";
 
 const navLinks: GooeyNavItem[] = [
   { label: "Home", href: "#home" },
@@ -112,28 +113,24 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
       transition={{ duration: 0.6, ease: "easeOut" }}
       className="site-nav-shell fixed z-50 transition-all duration-300"
     >
-      <div className="site-nav-content flex h-full w-full items-center justify-between px-3">
-        <div className="flex items-center gap-6">
-          <button
-            type="button"
-            onClick={handleThemeClick}
-            aria-label="Toggle color theme"
-            className="site-theme-toggle inline-flex size-11 items-center justify-center rounded-full bg-transparent transition-colors duration-200"
-          >
-            <ThemeIcon />
-          </button>
-
-          {/* Logo */}
-          <a
-            href="#home"
-            className="site-nav-brand text-xl font-bold tracking-wider transition-colors"
-          >
-            Bian<span>Kiii</span>
-          </a>
-        </div>
+      <div className="site-nav-content flex h-full w-full items-center justify-between">
+        <a
+          href="#home"
+          aria-label="Biankiii — Home"
+          className="site-nav-brand"
+        >
+          <img
+            src={withBasePath("/logo.svg")}
+            alt=""
+            aria-hidden="true"
+            className="site-nav-logo"
+            width="44"
+            height="44"
+          />
+        </a>
 
         {/* Desktop Nav */}
-        <div className="ml-auto hidden md:block pr-10">
+        <div className="site-nav-links hidden md:block">
           <GooeyNav
             items={navLinks}
             particleCount={15}
@@ -150,6 +147,15 @@ export default function Navbar({ onToggleTheme }: NavbarProps) {
             timeVariance={300}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={handleThemeClick}
+          aria-label="Toggle color theme"
+          className="site-theme-toggle inline-flex size-11 items-center justify-center rounded-full bg-transparent transition-colors duration-200"
+        >
+          <ThemeIcon />
+        </button>
       </div>
     </motion.nav>
   );
